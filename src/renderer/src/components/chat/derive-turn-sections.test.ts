@@ -103,6 +103,53 @@ describe('deriveTurnSections', () => {
     ])
   })
 
+  it('merges repeated file changes for the same displayed path', () => {
+    const firstPatch = [
+      'diff --git a/.kunsdd/draft/plan/requirement.md b/.kunsdd/draft/plan/requirement.md',
+      '--- a/.kunsdd/draft/plan/requirement.md',
+      '+++ b/.kunsdd/draft/plan/requirement.md',
+      '@@ -1,1 +1,1 @@',
+      '-old title',
+      '+new title'
+    ].join('\n')
+    const secondPatch = [
+      'diff --git a/.kunsdd/draft/plan/requirement.md b/.kunsdd/draft/plan/requirement.md',
+      '--- a/.kunsdd/draft/plan/requirement.md',
+      '+++ b/.kunsdd/draft/plan/requirement.md',
+      '@@ -4,1 +4,2 @@',
+      ' context',
+      '+new detail'
+    ].join('\n')
+    const result = sections([
+      {
+        kind: 'tool',
+        id: 'tool_first_edit',
+        summary: 'Edit requirement',
+        status: 'success',
+        toolKind: 'file_change',
+        filePath: '/tmp/.kunsdd/draft/plan/requirement.md',
+        detail: firstPatch
+      },
+      {
+        kind: 'tool',
+        id: 'tool_second_edit',
+        summary: 'Edit requirement again',
+        status: 'success',
+        toolKind: 'file_change',
+        filePath: '/tmp/.kunsdd/draft/plan/requirement.md',
+        detail: secondPatch
+      }
+    ])
+
+    expect(result.turnFileChanges).toHaveLength(1)
+    expect(result.turnFileChanges[0]).toMatchObject({
+      id: 'tool_first_edit',
+      filePath: '.kunsdd/draft/plan/requirement.md'
+    })
+    expect(result.turnFileChanges[0]?.detail).toContain('+new title')
+    expect(result.turnFileChanges[0]?.detail).toContain('+new detail')
+  })
+
   it('renders live assistant output inside the active process timeline', () => {
     const result = processingSections({
       liveProcessText: 'private reasoning',

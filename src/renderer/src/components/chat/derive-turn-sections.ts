@@ -19,12 +19,44 @@ export type TurnSections = {
   turnFileChanges: ToolBlock[]
 }
 
+type ResolvedFileChangeBlock = ToolBlock & {
+  detail: string
+  filePath: string
+}
+
 type DeriveTurnSectionsInput = {
   turn: Turn
   isProcessing: boolean
   liveProcessText: string
   liveContent: string
   workspaceRoot: string
+}
+
+function fileChangeGroupKey(filePath: string): string {
+  return filePath.trim().replace(/\\/g, '/').replace(/\/+$/, '')
+}
+
+function mergeFileChangeBlocks(changes: ResolvedFileChangeBlock[]): ToolBlock[] {
+  const merged: ResolvedFileChangeBlock[] = []
+  const indexByPath = new Map<string, number>()
+
+  for (const change of changes) {
+    const key = fileChangeGroupKey(change.filePath)
+    const existingIndex = indexByPath.get(key)
+    if (existingIndex === undefined) {
+      indexByPath.set(key, merged.length)
+      merged.push(change)
+      continue
+    }
+
+    const existing = merged[existingIndex]
+    merged[existingIndex] = {
+      ...existing,
+      detail: [existing.detail, change.detail].filter(Boolean).join('\n\n')
+    }
+  }
+
+  return merged
 }
 
 /**
@@ -96,7 +128,7 @@ export function deriveTurnSections({
 
   const turnFileChanges: ToolBlock[] = isProcessing
     ? []
-    : turn.blocks.flatMap((block): ToolBlock[] => {
+    : mergeFileChangeBlocks(turn.blocks.flatMap((block): ResolvedFileChangeBlock[] => {
         if (
           !(block.kind === 'tool' && block.toolKind === 'file_change' && block.status === 'success')
         ) {
@@ -113,7 +145,7 @@ export function deriveTurnSections({
         if (!resolvedFilePath) return []
 
         return [{ ...block, detail: detailText, filePath: resolvedFilePath }]
-      })
+      }))
 
   return { processBlocks, assistantContentBlocks, turnFileChanges }
 }
