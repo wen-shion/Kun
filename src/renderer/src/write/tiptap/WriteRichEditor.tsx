@@ -325,7 +325,10 @@ export function WriteRichEditor({
       TableKit.configure({ table: { resizable: false } }),
       TaskList,
       TaskItem.configure({ nested: true }),
-      WriteLocalImage.configure({ getFilePath: () => filePathRef.current }),
+      WriteLocalImage.configure({
+        getFilePath: () => filePathRef.current,
+        getWorkspaceRoot: () => workspaceRootRef.current
+      }),
       WritePasteImage.configure({
         getWorkspaceRoot: () => workspaceRootRef.current,
         getFilePath: () => filePathRef.current,

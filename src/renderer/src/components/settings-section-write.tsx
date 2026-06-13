@@ -12,7 +12,8 @@ import {
   resolveWriteInlineCompletionProviderId,
   type WriteQuickActionV1
 } from '@shared/app-settings'
-import { WRITE_INFOGRAPHIC_DEFAULT_PROMPT } from '@shared/write-infographic'
+import { WRITE_DESIGN_DRAFT_DEFAULT_PROMPT, WRITE_INFOGRAPHIC_DEFAULT_PROMPT } from '@shared/write-infographic'
+import { WRITE_PROTOTYPE_DEFAULT_PROMPT } from '@shared/write-prototype'
 import { PencilLine, Plus, RotateCcw, Trash2 } from 'lucide-react'
 import { builtinWriteQuickActionDefaults } from '../write/quick-actions'
 import {
@@ -319,6 +320,42 @@ export function WriteSettingsSection({ ctx }: { ctx: Record<string, any> }): Rea
                           spellCheck={false}
                           onChange={(e) =>
                             update({ write: { selectionAssist: { infographicPrompt: e.target.value } } })
+                          }
+                        />
+                      </div>
+
+                      <div>
+                        <div className="text-[13px] font-semibold text-ds-ink">
+                          {t('writeDesignDraftPromptLabel')}
+                        </div>
+                        <p className="mt-1 text-[12.5px] leading-5 text-ds-faint">
+                          {t('writeDesignDraftPromptDesc')}
+                        </p>
+                        <textarea
+                          className={`${textInputClass} mt-2 min-h-[72px] resize-y leading-5`}
+                          value={selectionAssist.designDraftPrompt}
+                          placeholder={WRITE_DESIGN_DRAFT_DEFAULT_PROMPT}
+                          spellCheck={false}
+                          onChange={(e) =>
+                            update({ write: { selectionAssist: { designDraftPrompt: e.target.value } } })
+                          }
+                        />
+                      </div>
+
+                      <div>
+                        <div className="text-[13px] font-semibold text-ds-ink">
+                          {t('writePrototypePromptLabel')}
+                        </div>
+                        <p className="mt-1 text-[12.5px] leading-5 text-ds-faint">
+                          {t('writePrototypePromptDesc')}
+                        </p>
+                        <textarea
+                          className={`${textInputClass} mt-2 min-h-[72px] resize-y leading-5`}
+                          value={selectionAssist.prototypePrompt}
+                          placeholder={WRITE_PROTOTYPE_DEFAULT_PROMPT}
+                          spellCheck={false}
+                          onChange={(e) =>
+                            update({ write: { selectionAssist: { prototypePrompt: e.target.value } } })
                           }
                         />
                       </div>

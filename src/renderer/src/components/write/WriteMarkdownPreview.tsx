@@ -26,6 +26,8 @@ import {
 } from '../../write/markdown-image'
 import { parsePendingInfographicId } from '../../write/infographic-pending'
 import { createInfographicPendingElement } from '../../write/infographic-pending-dom'
+import { createHtmlEmbedElement } from '../../write/html-embed-dom'
+import { isHtmlEmbedSrc } from '@shared/write-prototype'
 import {
   highlightCodeHtml,
   renderFallbackCodeHtml
@@ -41,6 +43,7 @@ type Props = {
   content: string
   isMarkdown: boolean
   filePath?: string | null
+  workspaceRoot?: string | null
   previewErrorMessage?: string
 }
 
@@ -310,6 +313,7 @@ type ResolvedMarkdownImageProps = {
   src?: string
   alt?: string | null
   filePath?: string | null
+  workspaceRoot?: string | null
   'data-raw-src'?: string
 } & Omit<ComponentPropsWithoutRef<'img'>, 'src' | 'alt'>
 
@@ -326,20 +330,45 @@ function PendingInfographicFigure({ id }: { id: string }): ReactElement {
   return <span ref={hostRef} className="block" />
 }
 
+function HtmlEmbedFigure({
+  rawSrc,
+  alt,
+  filePath,
+  workspaceRoot
+}: {
+  rawSrc: string
+  alt: string
+  filePath: string | null
+  workspaceRoot: string | null
+}): ReactElement {
+  const hostRef = useRef<HTMLSpanElement | null>(null)
+
+  useEffect(() => {
+    const host = hostRef.current
+    if (!host) return
+    host.replaceChildren(createHtmlEmbedElement({ rawSrc, alt, filePath, workspaceRoot }))
+    return () => host.replaceChildren()
+  }, [rawSrc, alt, filePath, workspaceRoot])
+
+  return <span ref={hostRef} className="block" />
+}
+
 function ResolvedMarkdownImage({
   src,
   alt,
   filePath,
+  workspaceRoot,
   'data-raw-src': rawSrc,
   ...props
 }: ResolvedMarkdownImageProps): ReactElement {
   const imageSrc = rawSrc ?? src
   const pendingId = parsePendingInfographicId(imageSrc)
+  const htmlEmbed = pendingId === null && isHtmlEmbedSrc(imageSrc)
   const [resolvedSrc, setResolvedSrc] = useState(() => initialWriteMarkdownImageSrc(imageSrc, filePath))
   const [loadError, setLoadError] = useState<string | null>(null)
 
   useEffect(() => {
-    if (pendingId !== null) return undefined
+    if (pendingId !== null || htmlEmbed) return undefined
     let cancelled = false
     setLoadError(null)
     setResolvedSrc(initialWriteMarkdownImageSrc(imageSrc, filePath))
@@ -357,10 +386,21 @@ function ResolvedMarkdownImage({
     return () => {
       cancelled = true
     }
-  }, [imageSrc, filePath, pendingId])
+  }, [imageSrc, filePath, pendingId, htmlEmbed])
 
   if (pendingId !== null) {
     return <PendingInfographicFigure id={pendingId} />
+  }
+
+  if (htmlEmbed && imageSrc) {
+    return (
+      <HtmlEmbedFigure
+        rawSrc={imageSrc}
+        alt={alt ?? ''}
+        filePath={filePath ?? null}
+        workspaceRoot={workspaceRoot ?? null}
+      />
+    )
   }
 
   if (loadError) {
@@ -434,7 +474,7 @@ class PreviewErrorBoundary extends Component<PreviewBoundaryProps, PreviewBounda
   }
 }
 
-function WriteMarkdownPreviewContent({ content, isMarkdown, filePath }: Props): ReactElement {
+function WriteMarkdownPreviewContent({ content, isMarkdown, filePath, workspaceRoot }: Props): ReactElement {
   if (!isMarkdown) return plainTextFallback(content)
 
   return (
@@ -462,6 +502,7 @@ function WriteMarkdownPreviewContent({ content, isMarkdown, filePath }: Props): 
               src={src}
               alt={alt}
               filePath={filePath}
+              workspaceRoot={workspaceRoot}
             />
           ),
           code: ({ className, children, node, ...props }): ReactNode => (

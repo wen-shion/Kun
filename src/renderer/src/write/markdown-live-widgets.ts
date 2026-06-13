@@ -6,6 +6,7 @@ import {
 } from '../lib/code-highlighting'
 import { isPendingInfographicActive } from './infographic-pending'
 import { createInfographicPendingElement } from './infographic-pending-dom'
+import { createHtmlEmbedElement } from './html-embed-dom'
 
 export type BlockRange = {
   from: number
@@ -211,6 +212,38 @@ export class InfographicPendingWidget extends WidgetType {
       preventEditorMouseHandling(event)
       focusSourceAt(view, view.posAtDOM(wrapper, 0))
     })
+    return wrapper
+  }
+}
+
+export class HtmlEmbedWidget extends WidgetType {
+  constructor(
+    private rawSrc: string,
+    private alt: string,
+    private filePath: string | null,
+    private workspaceRoot: string | null
+  ) {
+    super()
+  }
+
+  // Position is intentionally not part of identity: edits elsewhere in the
+  // document must reuse this DOM, both to avoid flicker and because an
+  // activated webview reloads from scratch on every reattach.
+  eq(other: HtmlEmbedWidget): boolean {
+    return other.rawSrc === this.rawSrc && other.filePath === this.filePath
+  }
+
+  toDOM(): HTMLElement {
+    const wrapper = document.createElement('span')
+    wrapper.className = 'cm-write-md-image-wrap'
+    wrapper.appendChild(
+      createHtmlEmbedElement({
+        rawSrc: this.rawSrc,
+        alt: this.alt,
+        filePath: this.filePath,
+        workspaceRoot: this.workspaceRoot
+      })
+    )
     return wrapper
   }
 }

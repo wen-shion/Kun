@@ -35,6 +35,7 @@ import {
 import { parseRuntimeErrorBody, runtimeErrorToError, type RuntimeErrorCode } from '../shared/runtime-error'
 import type { GuiUpdateState } from '../shared/gui-update'
 import { isAllowedDevPreviewUrl } from '../shared/dev-preview-url'
+import { isAuthorizedPrototypeFileUrl } from './services/prototype-embed-registry'
 import { fetchUpstreamModelIds } from './upstream-models'
 import {
   kunRuntimeAdapter,
@@ -271,7 +272,9 @@ function installDevPreviewWebviewGuards(): void {
   app.on('web-contents-created', (_, contents) => {
     contents.on('will-attach-webview', (event, webPreferences, params) => {
       const src = typeof params.src === 'string' ? params.src : ''
-      if (!isAllowedDevPreviewUrl(src)) {
+      // Prototype embeds are file:// pages the renderer authorized through
+      // write:authorize-prototype right before attaching.
+      if (!isAllowedDevPreviewUrl(src) && !isAuthorizedPrototypeFileUrl(src)) {
         event.preventDefault()
         return
       }

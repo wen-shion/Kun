@@ -62,6 +62,8 @@ export function defaultWriteQuickActions(): WriteQuickActionV1[] {
 export function defaultWriteSelectionAssistSettings(): WriteSelectionAssistSettingsV1 {
   return {
     infographicPrompt: '',
+    designDraftPrompt: '',
+    prototypePrompt: '',
     quickActions: defaultWriteQuickActions()
   }
 }
@@ -85,8 +87,16 @@ export function normalizeWriteSelectionAssistSettings(
     typeof input?.infographicPrompt === 'string'
       ? input.infographicPrompt.slice(0, WRITE_QUICK_ACTION_PROMPT_MAX_CHARS)
       : defaults.infographicPrompt
+  const designDraftPrompt =
+    typeof input?.designDraftPrompt === 'string'
+      ? input.designDraftPrompt.slice(0, WRITE_QUICK_ACTION_PROMPT_MAX_CHARS)
+      : defaults.designDraftPrompt
+  const prototypePrompt =
+    typeof input?.prototypePrompt === 'string'
+      ? input.prototypePrompt.slice(0, WRITE_QUICK_ACTION_PROMPT_MAX_CHARS)
+      : defaults.prototypePrompt
   if (!Array.isArray(input?.quickActions)) {
-    return { infographicPrompt, quickActions: defaults.quickActions }
+    return { infographicPrompt, designDraftPrompt, prototypePrompt, quickActions: defaults.quickActions }
   }
 
   const seen = new Set<string>()
@@ -116,7 +126,7 @@ export function normalizeWriteSelectionAssistSettings(
     quickActions.push({ id, label, prompt, mode })
     if (quickActions.length >= WRITE_QUICK_ACTION_MAX_COUNT) break
   }
-  return { infographicPrompt, quickActions }
+  return { infographicPrompt, designDraftPrompt, prototypePrompt, quickActions }
 }
 
 export function defaultWriteSettings(): WriteSettingsV1 {

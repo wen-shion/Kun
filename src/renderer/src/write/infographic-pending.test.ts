@@ -4,8 +4,10 @@ import {
   buildPendingInfographicMarkdown,
   finishPendingInfographic,
   isPendingInfographicActive,
+  lineEndAfter,
   parsePendingInfographicId,
   parsePendingInfographicImage,
+  pendingInfographicKind,
   replacePendingInfographicInText
 } from './infographic-pending'
 
@@ -16,6 +18,25 @@ describe('pending infographic tokens', () => {
     expect(parsePendingInfographicId(pending.src)).toBe(pending.id)
     finishPendingInfographic(pending.id)
     expect(isPendingInfographicActive(pending.id)).toBe(false)
+  })
+
+  it('tracks the image kind for active generations only', () => {
+    const infographic = beginPendingInfographic()
+    const design = beginPendingInfographic('design')
+    const prototype = beginPendingInfographic('prototype')
+    expect(pendingInfographicKind(infographic.id)).toBe('infographic')
+    expect(pendingInfographicKind(design.id)).toBe('design')
+    expect(pendingInfographicKind(prototype.id)).toBe('prototype')
+    finishPendingInfographic(infographic.id)
+    finishPendingInfographic(design.id)
+    finishPendingInfographic(prototype.id)
+    expect(pendingInfographicKind(design.id)).toBeNull()
+  })
+
+  it('finds the insertion point at the end of the selection line', () => {
+    expect(lineEndAfter('第一行\n第二行', 1)).toBe(3)
+    expect(lineEndAfter('单行无换行', 2)).toBe(5)
+    expect(lineEndAfter('', 0)).toBe(0)
   })
 
   it('rejects non-pending sources', () => {

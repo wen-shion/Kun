@@ -1,6 +1,7 @@
 export const SDD_RELATIVE_DIR = '.kunsdd'
 export const SDD_DRAFT_RELATIVE_DIR = `${SDD_RELATIVE_DIR}/draft`
 export const SDD_IMAGE_RELATIVE_DIR = `${SDD_RELATIVE_DIR}/img`
+export const SDD_PROTO_RELATIVE_DIR = `${SDD_RELATIVE_DIR}/proto`
 export const SDD_DRAFT_FILE_NAME = 'requirement.md'
 export const SDD_TRACE_FILE_NAME = 'trace.json'
 
@@ -57,5 +58,13 @@ export function isSddImageRelativePath(value: string): boolean {
   const normalized = normalizeSddRelativePath(value)
   if (!normalized.startsWith(`${SDD_IMAGE_RELATIVE_DIR}/`)) return false
   const rest = normalized.slice(SDD_IMAGE_RELATIVE_DIR.length + 1)
+  return Boolean(rest) && !rest.split('/').some((part) => !part || part === '.' || part === '..')
+}
+
+/** Generated interactive prototypes live under `.kunsdd/proto/`. */
+export function isSddPrototypeRelativePath(value: string): boolean {
+  const normalized = normalizeSddRelativePath(value)
+  if (!normalized.startsWith(`${SDD_PROTO_RELATIVE_DIR}/`)) return false
+  const rest = normalized.slice(SDD_PROTO_RELATIVE_DIR.length + 1)
   return Boolean(rest) && !rest.split('/').some((part) => !part || part === '.' || part === '..')
 }

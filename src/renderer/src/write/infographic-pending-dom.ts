@@ -1,5 +1,5 @@
 import i18n from '../i18n'
-import { isPendingInfographicActive } from './infographic-pending'
+import { isPendingInfographicActive, pendingInfographicKind } from './infographic-pending'
 
 /**
  * Placeholder shown where a generating infographic will land: a white canvas
@@ -110,9 +110,15 @@ export function createInfographicPendingElement(id: string): HTMLElement {
   const label = document.createElement('span')
   label.className = 'write-infographic-pending-label'
   const text = document.createElement('span')
+  const kind = pendingInfographicKind(id)
+  // Stale tokens keep the shared label: the kind is gone with the registry.
   text.textContent = stale
     ? i18n.t('common:writeInfographicStale')
-    : i18n.t('common:writeInfographicDrawing')
+    : kind === 'design'
+      ? i18n.t('common:writeDesignDraftDrawing')
+      : kind === 'prototype'
+        ? i18n.t('common:writePrototypeBuilding')
+        : i18n.t('common:writeInfographicDrawing')
   label.appendChild(text)
   if (!stale) {
     const dots = document.createElement('span')

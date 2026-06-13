@@ -1,7 +1,7 @@
 import { randomBytes } from 'node:crypto'
 import { mkdir, writeFile } from 'node:fs/promises'
 import { dirname, isAbsolute, join, relative, resolve } from 'node:path'
-import { normalizePathSeparators, resolveTargetPathWithinWorkspace } from './workspace-paths'
+import { canonicalPath, normalizePathSeparators, resolveTargetPathWithinWorkspace } from './workspace-paths'
 import {
   normalizeWriteSettings,
   resolveKunImageGenerationSettings,
@@ -10,8 +10,10 @@ import {
   type WriteSettingsPatchV1
 } from '../../shared/app-settings'
 import {
+  WRITE_DESIGN_DRAFT_DEFAULT_PROMPT,
   WRITE_INFOGRAPHIC_DEFAULT_PROMPT,
   WRITE_INFOGRAPHIC_MAX_TEXT_CHARS,
+  type WriteInfographicKind,
   type WriteInfographicRequest,
   type WriteInfographicResult
 } from '../../shared/write-infographic'
@@ -24,9 +26,21 @@ import {
 // Matches WORKSPACE_IMAGE_DIR in workspace-files.ts so infographics land in
 // the same workspace-level folder as pasted images.
 const INFOGRAPHIC_IMAGE_DIR = 'img'
-// Portrait reads best for infographics; mapImageSize('3:4', '1K') → 768x1024.
-const INFOGRAPHIC_ASPECT_RATIO = '3:4'
-const INFOGRAPHIC_SIZE_TIER = '1K'
+const IMAGE_SIZE_TIER = '1K'
+// Portrait reads best for infographics (768x1024); design mockups read best
+// in landscape (1024x768). An explicit defaultSize setting overrides both.
+const KIND_ASPECT_RATIO: Record<WriteInfographicKind, string> = {
+  infographic: '3:4',
+  design: '4:3'
+}
+const KIND_FILE_PREFIX: Record<WriteInfographicKind, string> = {
+  infographic: 'infographic',
+  design: 'design'
+}
+const KIND_DEFAULT_PROMPT: Record<WriteInfographicKind, string> = {
+  infographic: WRITE_INFOGRAPHIC_DEFAULT_PROMPT,
+  design: WRITE_DESIGN_DRAFT_DEFAULT_PROMPT
+}
 
 export function isWriteInfographicConfigured(
   imageGeneration: Pick<KunImageGenerationSettingsV1, 'enabled' | 'baseUrl' | 'apiKey' | 'model'>
@@ -39,9 +53,13 @@ export function isWriteInfographicConfigured(
   )
 }
 
-export function buildWriteInfographicPrompt(text: string, customPrompt = ''): string {
+export function buildWriteInfographicPrompt(
+  text: string,
+  customPrompt = '',
+  kind: WriteInfographicKind = 'infographic'
+): string {
   const clipped = text.trim().slice(0, WRITE_INFOGRAPHIC_MAX_TEXT_CHARS)
-  const prefix = customPrompt.trim() || WRITE_INFOGRAPHIC_DEFAULT_PROMPT
+  const prefix = customPrompt.trim() || KIND_DEFAULT_PROMPT[kind]
   return `${prefix}\n\n${clipped}`
 }
 
@@ -65,21 +83,25 @@ export async function requestWriteInfographic(
     return { ok: false, message: 'document must be inside the write workspace' }
   }
 
+  const kind: WriteInfographicKind = request.kind ?? 'infographic'
   const client = options.client ?? createImageGenClient(imageGeneration)
   // An explicit defaultSize wins: users set it when their provider only
-  // accepts fixed sizes (e.g. gpt-image's 1024x1536). Otherwise use a
-  // portrait size that suits infographics.
+  // accepts fixed sizes (e.g. gpt-image's 1024x1536). Otherwise use an
+  // aspect ratio that suits the image kind.
   const size = imageGeneration.defaultSize.trim() ||
-    mapImageSize(INFOGRAPHIC_ASPECT_RATIO, INFOGRAPHIC_SIZE_TIER, undefined)
+    mapImageSize(KIND_ASPECT_RATIO[kind], IMAGE_SIZE_TIER, undefined)
 
-  const infographicPrompt = normalizeWriteSettings(
+  const selectionAssist = normalizeWriteSettings(
     (settings as { write?: WriteSettingsPatchV1 }).write
-  ).selectionAssist.infographicPrompt
+  ).selectionAssist
+  const customPrompt = kind === 'design'
+    ? selectionAssist.designDraftPrompt
+    : selectionAssist.infographicPrompt
 
   let image: { data: Buffer; mimeType: string }
   try {
     image = await client.generate({
-      prompt: buildWriteInfographicPrompt(text, infographicPrompt),
+      prompt: buildWriteInfographicPrompt(text, customPrompt, kind),
       model: imageGeneration.model.trim(),
       ...(size && size !== 'auto' ? { size } : {}),
       timeoutMs: imageGeneration.timeoutMs,
@@ -91,17 +113,21 @@ export async function requestWriteInfographic(
 
   const ext = image.mimeType === 'image/jpeg' ? 'jpg' : image.mimeType === 'image/webp' ? 'webp' : 'png'
   const stamp = new Date().toISOString().replace(/\D/g, '').slice(0, 14)
-  const fileName = `infographic-${stamp}-${randomBytes(2).toString('hex')}.${ext}`
+  const fileName = `${KIND_FILE_PREFIX[kind]}-${stamp}-${randomBytes(2).toString('hex')}.${ext}`
   let absolutePath: string
   let markdownPath: string
   try {
-    const imageDir = await resolveTargetPathWithinWorkspace(INFOGRAPHIC_IMAGE_DIR, workspaceRoot)
+    const imageDirSetting = request.imageDir?.trim() || INFOGRAPHIC_IMAGE_DIR
+    const imageDir = await resolveTargetPathWithinWorkspace(imageDirSetting, workspaceRoot)
     await mkdir(imageDir, { recursive: true })
     absolutePath = join(imageDir, fileName)
     await writeFile(absolutePath, image.data)
     // imageDir is canonicalized (symlinks resolved), so derive the document
     // directory from the same canonical root to keep the relative link clean.
-    const documentDir = join(dirname(imageDir), dirname(relativeToRoot))
+    // dirname(imageDir) only equals the root for single-segment dirs, so
+    // canonicalize the root itself (covers nested dirs like '.kunsdd/img').
+    const canonicalRoot = await canonicalPath(workspaceRoot)
+    const documentDir = join(canonicalRoot, dirname(relativeToRoot))
     markdownPath = normalizePathSeparators(relative(documentDir, absolutePath))
   } catch (error) {
     return { ok: false, message: error instanceof Error ? error.message : String(error) }

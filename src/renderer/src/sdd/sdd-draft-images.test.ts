@@ -109,4 +109,19 @@ describe('collectSddDraftImages', () => {
     expect(result.images).toEqual([])
     expect(result.errors).toEqual(['SDD images must live under .kunsdd/img: ../not-img/wrong.png'])
   })
+
+  it('skips interactive prototype embeds under .kunsdd/proto without errors', async () => {
+    const result = await collectSddDraftImages({
+      workspaceRoot: '/tmp/ws',
+      draftRelativePath: DRAFT_PATH,
+      markdown: '![交互原型](../../proto/prototype-20260612-aa.html)',
+      readImage: async () => {
+        throw new Error('prototypes must not be read as images')
+      },
+      measureImage: async () => ({})
+    })
+
+    expect(result.images).toEqual([])
+    expect(result.errors).toEqual([])
+  })
 })

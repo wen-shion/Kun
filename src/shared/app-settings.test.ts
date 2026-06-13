@@ -1086,6 +1086,23 @@ describe('write selection assist settings', () => {
     ])
   })
 
+  it('carries the design and prototype prompts through normalization', () => {
+    const write = normalizeWriteSettings({
+      selectionAssist: {
+        designDraftPrompt: '移动端高保真。',
+        prototypePrompt: '暗色主题原型。'
+      }
+    })
+    expect(write.selectionAssist.designDraftPrompt).toBe('移动端高保真。')
+    expect(write.selectionAssist.prototypePrompt).toBe('暗色主题原型。')
+
+    const next = mergeWriteSettings(defaultWriteSettings(), {
+      selectionAssist: { prototypePrompt: '原型用 vue 风格组件。' }
+    })
+    expect(next.selectionAssist.prototypePrompt).toBe('原型用 vue 风格组件。')
+    expect(next.selectionAssist.designDraftPrompt).toBe('')
+  })
+
   it('drops duplicate and id-less quick actions but keeps unfinished custom rows', () => {
     const write = normalizeWriteSettings({
       selectionAssist: {

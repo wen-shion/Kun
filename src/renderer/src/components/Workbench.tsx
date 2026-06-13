@@ -63,6 +63,7 @@ import { saveActiveSddDraftToDisk } from '../sdd/sdd-draft-actions'
 import { restoreRememberedSddDraft, restoreSddDraft } from '../sdd/sdd-draft-restore'
 import { composeSddAssistantPrompt } from '../sdd/sdd-assistant-prompt'
 import { collectSddDraftImages, withAttachmentIds, type SddDraftImageReference } from '../sdd/sdd-draft-images'
+import { PENDING_INFOGRAPHIC_PROTOCOL } from '../write/infographic-pending'
 import { buildSddDraftToPlanPrompt } from '../sdd/sdd-plan-prompt'
 import {
   isSddAssistantThread,
@@ -1105,17 +1106,28 @@ export function Workbench(): ReactElement {
     if (options.closeAssistant && rightPanelMode === 'sdd-ai') setRightPanelMode(null)
   }
 
-  const toggleSddAssistantPanel = async (): Promise<void> => {
-    if (rightPanelMode === 'sdd-ai') {
-      setRightPanelMode(null)
-      return
-    }
+  const openSddAssistantPanel = async (): Promise<void> => {
     const draft = useSddDraftStore.getState().activeDraft
     if (!draft) return
     setRightSidebarWidth((width) => Math.max(width, 420))
     const threadId = await ensureSddAssistantThreadForDraft(draft)
     if (!threadId) return
     setRightPanelMode('sdd-ai')
+  }
+
+  const toggleSddAssistantPanel = async (): Promise<void> => {
+    if (rightPanelMode === 'sdd-ai') {
+      setRightPanelMode(null)
+      return
+    }
+    await openSddAssistantPanel()
+  }
+
+  const quoteToSddAssistant = (prompt: string): void => {
+    const trimmed = prompt.trim()
+    if (!trimmed) return
+    setInput(input.trim() ? `${input.trim()}\n\n${trimmed}` : trimmed)
+    void openSddAssistantPanel()
   }
 
   const startNewSddRequirement = async (): Promise<void> => {
@@ -1291,6 +1303,12 @@ export function Workbench(): ReactElement {
     if (sddUpgradeInFlightRef.current || snapshot.operationStatus === 'upgrading') return
     if (!snapshot.content.trim()) {
       useSddDraftStore.getState().setOperationStatus('error', t('sddEmptyDraftError'))
+      return
+    }
+    // An in-flight image placeholder would be snapshotted into the plan prompt
+    // (and trip the image collector); finish or delete it first.
+    if (snapshot.content.includes(PENDING_INFOGRAPHIC_PROTOCOL)) {
+      useSddDraftStore.getState().setOperationStatus('error', t('sddPendingImageBlocked'))
       return
     }
     const chatSnapshot = useChatStore.getState()
@@ -2013,6 +2031,7 @@ export function Workbench(): ReactElement {
               assistantOpen={rightPanelMode === 'sdd-ai'}
               onToggleLeftSidebar={toggleLeftSidebar}
               onToggleAssistant={() => void toggleSddAssistantPanel()}
+              onAssistantQuote={quoteToSddAssistant}
               onNext={() => void handleSddNextStep()}
               onClose={() => dismissActiveSddDraft({ closeAssistant: true })}
               nextDisabled={busy || runtimeConnection !== 'ready' || sddDraftOperationStatus === 'upgrading'}

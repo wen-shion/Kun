@@ -1,15 +1,19 @@
 import { Image } from '@tiptap/extension-image'
+import { isHtmlEmbedSrc } from '@shared/write-prototype'
 import {
   initialWriteMarkdownImageSrc,
   loadWriteMarkdownImage
 } from '../markdown-image'
 import { parsePendingInfographicId } from '../infographic-pending'
 import { createInfographicPendingElement } from '../infographic-pending-dom'
+import { createHtmlEmbedElement } from '../html-embed-dom'
 
 export type WriteLocalImageOptions = {
   /** Absolute path of the markdown file being edited; relative image
    * sources resolve against its directory. */
   getFilePath: () => string
+  /** Workspace root the document belongs to; prototype embeds authorize against it. */
+  getWorkspaceRoot: () => string
 }
 
 /**
@@ -21,7 +25,8 @@ export const WriteLocalImage = Image.extend<WriteLocalImageOptions>({
   addOptions() {
     return {
       ...this.parent?.(),
-      getFilePath: () => ''
+      getFilePath: () => '',
+      getWorkspaceRoot: () => ''
     }
   },
 
@@ -40,6 +45,22 @@ export const WriteLocalImage = Image.extend<WriteLocalImageOptions>({
             if (updated.type.name !== node.type.name) return false
             const updatedSrc = typeof updated.attrs.src === 'string' ? updated.attrs.src : ''
             return parsePendingInfographicId(updatedSrc) === pendingId
+          }
+        }
+      }
+      const rawSrc = typeof node.attrs.src === 'string' ? node.attrs.src : ''
+      if (isHtmlEmbedSrc(rawSrc)) {
+        // Generated HTML prototype: cover card + on-demand webview.
+        return {
+          dom: createHtmlEmbedElement({
+            rawSrc,
+            alt: typeof node.attrs.alt === 'string' ? node.attrs.alt : '',
+            filePath: this.options.getFilePath() || null,
+            workspaceRoot: this.options.getWorkspaceRoot() || null
+          }),
+          update: (updated) => {
+            if (updated.type.name !== node.type.name) return false
+            return updated.attrs.src === rawSrc
           }
         }
       }

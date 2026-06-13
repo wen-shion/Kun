@@ -96,6 +96,12 @@ const api = {
     ipcRenderer.invoke('write:retrieve-context', payload),
   generateWriteInfographic: (payload) =>
     ipcRenderer.invoke('write:generate-infographic', payload),
+  generateWritePrototype: (payload) =>
+    ipcRenderer.invoke('write:generate-prototype', payload),
+  authorizeWritePrototype: (payload) =>
+    ipcRenderer.invoke('write:authorize-prototype', payload),
+  openWritePrototype: (payload) =>
+    ipcRenderer.invoke('write:open-prototype', payload),
   transcribeSpeech: (payload) =>
     ipcRenderer.invoke('speech:transcribe', payload),
   listWriteInlineCompletionDebugEntries: () =>

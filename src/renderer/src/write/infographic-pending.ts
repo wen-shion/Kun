@@ -13,9 +13,12 @@ export const PENDING_INFOGRAPHIC_PROTOCOL = 'kun-pending-infographic:'
 
 const PENDING_SRC_PATTERN = /^kun-pending-infographic:\/\/([A-Za-z0-9-]+)$/
 
-/** Generations still running in this renderer. Tokens left over from a crash
- * or restored by undo after completion are not in here and render as stale. */
-const activeGenerations = new Set<string>()
+export type PendingInfographicKind = 'infographic' | 'design' | 'prototype'
+
+/** Generations still running in this renderer, keyed to their image kind.
+ * Tokens left over from a crash or restored by undo after completion are not
+ * in here and render as stale. */
+const activeGenerations = new Map<string, PendingInfographicKind>()
 
 function randomPendingId(): string {
   const generator = globalThis.crypto
@@ -23,9 +26,11 @@ function randomPendingId(): string {
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`
 }
 
-export function beginPendingInfographic(): { id: string; src: string } {
+export function beginPendingInfographic(
+  kind: PendingInfographicKind = 'infographic'
+): { id: string; src: string } {
   const id = randomPendingId()
-  activeGenerations.add(id)
+  activeGenerations.set(id, kind)
   return { id, src: `${PENDING_INFOGRAPHIC_PROTOCOL}//${id}` }
 }
 
@@ -35,6 +40,18 @@ export function finishPendingInfographic(id: string): void {
 
 export function isPendingInfographicActive(id: string): boolean {
   return activeGenerations.has(id)
+}
+
+/** Kind of an active generation; null for stale/unknown tokens. */
+export function pendingInfographicKind(id: string): PendingInfographicKind | null {
+  return activeGenerations.get(id) ?? null
+}
+
+/** Offset of the end of the line containing `offset` (insertion point for
+ * placeholders: below the selection, never splitting its paragraph). */
+export function lineEndAfter(content: string, offset: number): number {
+  const nextBreak = content.indexOf('\n', offset)
+  return nextBreak < 0 ? content.length : nextBreak
 }
 
 /** Id encoded in a pending src, or null when src is not a pending token. */

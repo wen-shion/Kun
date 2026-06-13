@@ -12,6 +12,20 @@ export const WRITE_INFOGRAPHIC_DEFAULT_PROMPT = [
   'Source content:'
 ].join(' ')
 
+/**
+ * Default prompt prefix for UI design mockup generation. Users can override
+ * it via write.selectionAssist.designDraftPrompt.
+ */
+export const WRITE_DESIGN_DRAFT_DEFAULT_PROMPT = [
+  'Create a high-fidelity UI design mockup for the product requirement described below.',
+  'Render a realistic application screen (pick the device frame that fits the requirement: desktop web or mobile),',
+  'with a clear layout, sensible navigation, and example content filled in.',
+  'Keep all interface text in the same language as the source content. Modern flat design, light background.',
+  'Requirement:'
+].join(' ')
+
+export type WriteInfographicKind = 'infographic' | 'design'
+
 export type WriteInfographicRequest = {
   /** Selected document text the infographic should summarize. */
   text: string
@@ -19,6 +33,13 @@ export type WriteInfographicRequest = {
   filePath: string
   /** Active write workspace root; the image is saved to its img/ folder. */
   workspaceRoot: string
+  /**
+   * Workspace-relative directory the image is written to (default 'img').
+   * The SDD draft editor passes '.kunsdd/img'.
+   */
+  imageDir?: string
+  /** Image flavor: summary infographic (default) or UI design mockup. */
+  kind?: WriteInfographicKind
 }
 
 export type WriteInfographicResult =

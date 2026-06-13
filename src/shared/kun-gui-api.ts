@@ -56,6 +56,10 @@ import type {
   WriteInfographicResult
 } from './write-infographic'
 import type {
+  WritePrototypeRequest,
+  WritePrototypeResult
+} from './write-prototype'
+import type {
   SpeechTranscriptionRequest,
   SpeechTranscriptionResult
 } from './speech-to-text'
@@ -234,6 +238,19 @@ export type KunGuiApi = {
   generateWriteInfographic: (
     payload: WriteInfographicRequest
   ) => Promise<WriteInfographicResult>
+  generateWritePrototype: (
+    payload: WritePrototypeRequest
+  ) => Promise<WritePrototypeResult>
+  authorizeWritePrototype: (payload: {
+    path: string
+    workspaceRoot: string
+  }) => Promise<
+    { ok: true; absolutePath: string; fileUrl: string } | { ok: false; message: string }
+  >
+  openWritePrototype: (payload: {
+    path: string
+    workspaceRoot: string
+  }) => Promise<{ ok: boolean; message?: string }>
   transcribeSpeech: (
     payload: SpeechTranscriptionRequest
   ) => Promise<SpeechTranscriptionResult>

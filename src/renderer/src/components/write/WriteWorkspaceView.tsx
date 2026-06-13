@@ -33,6 +33,7 @@ import {
   beginPendingInfographic,
   buildPendingInfographicMarkdown,
   finishPendingInfographic,
+  lineEndAfter,
   replacePendingInfographicInText
 } from '../../write/infographic-pending'
 import { startWriteWorkspaceFileWatch } from '../../write/write-file-watch'
@@ -423,12 +424,6 @@ export function WriteWorkspaceView({
     const pending = beginPendingInfographic()
     const pendingMarkdown = buildPendingInfographicMarkdown(t('writeInfographicAlt'), pending.src)
     const insertion = `\n\n${pendingMarkdown}\n`
-    // Insert after the line containing the selection end, not mid-sentence:
-    // a partial selection should never split its own paragraph.
-    const lineEndAfter = (content: string, offset: number): number => {
-      const nextBreak = content.indexOf('\n', offset)
-      return nextBreak < 0 ? content.length : nextBreak
-    }
     if (richHandle) {
       // Rich mode: insert at a projection offset so undo history and node
       // structure stay intact.

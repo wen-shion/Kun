@@ -171,4 +171,72 @@ describe('write infographic service', () => {
     expect(result.ok).toBe(true)
     expect(client.requests[0].prompt).toBe('用赛博朋克风格画一张信息图。\n\n季度营收增长 25%')
   })
+
+  it('writes into a nested imageDir and keeps the relative link clean', async () => {
+    const client = fakeClient()
+    const result = await requestWriteInfographic(settingsWithImageGen(), {
+      text: '需求：支持扫码登录。',
+      filePath: join(workspace, '.kunsdd', 'draft', 'dc040c2d', 'requirement.md'),
+      workspaceRoot: workspace,
+      imageDir: '.kunsdd/img',
+      kind: 'design'
+    }, { client })
+
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    expect(result.relativePath).toMatch(/^\.\.\/\.\.\/img\/design-\d{14}-[0-9a-f]{4}\.png$/)
+    expect(result.absolutePath).toBe(join(workspace, '.kunsdd', 'img', result.fileName))
+    expect(existsSync(result.absolutePath)).toBe(true)
+  })
+
+  it('uses the landscape default size and design prompt for kind=design', async () => {
+    const client = fakeClient()
+    const result = await requestWriteInfographic(settingsWithImageGen(), {
+      text: '需求内容',
+      filePath: join(workspace, 'doc.md'),
+      workspaceRoot: workspace,
+      kind: 'design'
+    }, { client })
+
+    expect(result.ok).toBe(true)
+    expect(client.requests[0].size).toBe('1024x768')
+    expect(client.requests[0].prompt).toContain('UI design mockup')
+    expect(client.requests[0].prompt).not.toContain('infographic')
+  })
+
+  it('prefers write.selectionAssist.designDraftPrompt for kind=design', async () => {
+    const client = fakeClient()
+    const settings = {
+      ...settingsWithImageGen(),
+      write: {
+        selectionAssist: {
+          infographicPrompt: '信息图提示词不该被用到。',
+          designDraftPrompt: '画一张移动端高保真设计稿。',
+          quickActions: []
+        }
+      }
+    } as unknown as AppSettingsV1
+    const result = await requestWriteInfographic(settings, {
+      text: '扫码登录需求',
+      filePath: join(workspace, 'doc.md'),
+      workspaceRoot: workspace,
+      kind: 'design'
+    }, { client })
+
+    expect(result.ok).toBe(true)
+    expect(client.requests[0].prompt).toBe('画一张移动端高保真设计稿。\n\n扫码登录需求')
+  })
+
+  it('rejects an imageDir that escapes the workspace', async () => {
+    const client = fakeClient()
+    const result = await requestWriteInfographic(settingsWithImageGen(), {
+      text: 'some text',
+      filePath: join(workspace, 'doc.md'),
+      workspaceRoot: workspace,
+      imageDir: '../outside'
+    }, { client })
+
+    expect(result.ok).toBe(false)
+    expect(existsSync(join(workspace, '..', 'outside'))).toBe(false)
+  })
 })

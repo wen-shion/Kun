@@ -75,6 +75,7 @@ export const useWriteWorkspaceStore = create<WriteWorkspaceState>((set, get) => 
   inlineCompletionApiReady: false,
   selectionAssist: defaultWriteSelectionAssistSettings(),
   imageGenReady: false,
+  prototypeReady: false,
   settingsLoading: false,
   settingsError: null,
   ...initialState(),

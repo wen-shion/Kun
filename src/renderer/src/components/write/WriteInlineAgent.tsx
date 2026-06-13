@@ -10,6 +10,7 @@ import {
   type RefObject
 } from 'react'
 import {
+  AppWindow,
   Bold,
   ChevronDown,
   Code,
@@ -18,6 +19,7 @@ import {
   Heading3,
   ImageIcon,
   Italic,
+  LayoutTemplate,
   Lightbulb,
   List,
   ListOrdered,
@@ -60,6 +62,12 @@ type Props = {
    * is async: the click inserts an animated placeholder and returns. */
   infographicEnabled?: boolean
   onGenerateInfographic?: () => void
+  /** UI design mockup generation; same async placeholder flow as infographics. */
+  designDraftEnabled?: boolean
+  onGenerateDesignDraft?: () => void
+  /** Interactive HTML prototype generation; embeds a runnable page below the selection. */
+  prototypeEnabled?: boolean
+  onGeneratePrototype?: () => void
 }
 
 /**
@@ -153,7 +161,11 @@ export function WriteInlineAgent({
   quickActions = [],
   onQuickAction,
   infographicEnabled = false,
-  onGenerateInfographic
+  onGenerateInfographic,
+  designDraftEnabled = false,
+  onGenerateDesignDraft,
+  prototypeEnabled = false,
+  onGeneratePrototype
 }: Props): ReactElement {
   const { t } = useTranslation('common')
   const menuRef = useRef<HTMLDivElement | null>(null)
@@ -164,6 +176,8 @@ export function WriteInlineAgent({
   const showFormatting = formattingEnabled && Boolean(onApplyFormat)
   const showQuickActions = quickActions.length > 0 && Boolean(onQuickAction)
   const showInfographic = infographicEnabled && Boolean(onGenerateInfographic)
+  const showDesignDraft = designDraftEnabled && Boolean(onGenerateDesignDraft)
+  const showPrototype = prototypeEnabled && Boolean(onGeneratePrototype)
   const activeBlock = BLOCK_TYPE_META[blockType] ?? BLOCK_TYPE_META.paragraph
   const ActiveBlockIcon = activeBlock.icon
 
@@ -192,6 +206,8 @@ export function WriteInlineAgent({
     showFormatting,
     showBlockSelector,
     showInfographic,
+    showDesignDraft,
+    showPrototype,
     blockMenuOpen,
     quickActions.length,
     preferAbove
@@ -297,7 +313,7 @@ export function WriteInlineAgent({
           </div>
         ) : null}
 
-        {showQuickActions || showInfographic ? (
+        {showQuickActions || showInfographic || showDesignDraft || showPrototype ? (
           <div className="write-inline-agent-actions">
             <div className="write-inline-agent-section-label">{t('writeSelectionSkills')}</div>
             {showQuickActions
@@ -330,6 +346,32 @@ export function WriteInlineAgent({
                 <ImageIcon className="h-4 w-4 shrink-0 text-accent" strokeWidth={1.85} />
                 <span className="min-w-0 flex-1 truncate text-left">
                   {t('writeInfographicGenerate')}
+                </span>
+                <Replace className="write-inline-agent-action-hint h-3.5 w-3.5" strokeWidth={1.8} />
+              </ToolbarButton>
+            ) : null}
+            {showDesignDraft ? (
+              <ToolbarButton
+                className="write-inline-agent-action-row"
+                label={t('writeDesignDraftGenerate')}
+                onActivate={() => onGenerateDesignDraft?.()}
+              >
+                <LayoutTemplate className="h-4 w-4 shrink-0 text-accent" strokeWidth={1.85} />
+                <span className="min-w-0 flex-1 truncate text-left">
+                  {t('writeDesignDraftGenerate')}
+                </span>
+                <Replace className="write-inline-agent-action-hint h-3.5 w-3.5" strokeWidth={1.8} />
+              </ToolbarButton>
+            ) : null}
+            {showPrototype ? (
+              <ToolbarButton
+                className="write-inline-agent-action-row"
+                label={t('writePrototypeGenerate')}
+                onActivate={() => onGeneratePrototype?.()}
+              >
+                <AppWindow className="h-4 w-4 shrink-0 text-accent" strokeWidth={1.85} />
+                <span className="min-w-0 flex-1 truncate text-left">
+                  {t('writePrototypeGenerate')}
                 </span>
                 <Replace className="write-inline-agent-action-hint h-3.5 w-3.5" strokeWidth={1.8} />
               </ToolbarButton>

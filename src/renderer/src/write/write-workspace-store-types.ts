@@ -17,6 +17,8 @@ export type WriteWorkspaceState = {
   selectionAssist: WriteSelectionAssistSettingsV1
   /** True when the image generation provider is fully configured (enables 生成信息图). */
   imageGenReady: boolean
+  /** True when the primary chat provider is configured (enables 生成交互原型). */
+  prototypeReady: boolean
   settingsLoading: boolean
   settingsError: string | null
   workspaceRoot: string

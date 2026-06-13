@@ -614,6 +614,10 @@ export type WriteQuickActionV1 = {
 export type WriteSelectionAssistSettingsV1 = {
   /** Custom infographic generation prompt prefix; empty = built-in default. */
   infographicPrompt: string
+  /** Custom UI design mockup prompt prefix; empty = built-in default. */
+  designDraftPrompt: string
+  /** Custom interactive HTML prototype prompt; empty = built-in default. */
+  prototypePrompt: string
   quickActions: WriteQuickActionV1[]
 }
 

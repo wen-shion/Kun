@@ -63,6 +63,8 @@ import {
   writeRichClipboardPayloadSchema,
   writeInfographicPayloadSchema,
   writeInlineCompletionPayloadSchema,
+  writePrototypeFilePayloadSchema,
+  writePrototypePayloadSchema,
   writeRetrievalPayloadSchema,
   workspaceRootSchema
 } from './app-ipc-schemas'
@@ -98,6 +100,8 @@ import {
 } from '../services/write-inline-completion-service'
 import { retrieveWriteContext } from '../services/write-retrieval-service'
 import { requestWriteInfographic } from '../services/write-infographic-service'
+import { requestWritePrototype } from '../services/write-prototype-service'
+import { authorizePrototypePath } from '../services/prototype-embed-registry'
 import { requestSpeechTranscription } from '../services/speech-to-text-service'
 import { copyWriteDocumentAsRichText, exportWriteDocument } from '../services/write-export-service'
 import { listGuiSkills } from '../services/skill-service'
@@ -872,6 +876,22 @@ export function registerAppIpcHandlers(options: RegisterAppIpcHandlersOptions): 
       parseIpcPayload('write:generate-infographic', writeInfographicPayloadSchema, payload)
     )
   )
+  ipcMain.handle('write:generate-prototype', async (_, payload: unknown) =>
+    requestWritePrototype(
+      await store.load(),
+      parseIpcPayload('write:generate-prototype', writePrototypePayloadSchema, payload)
+    )
+  )
+  ipcMain.handle('write:authorize-prototype', async (_, payload: unknown) => {
+    const request = parseIpcPayload('write:authorize-prototype', writePrototypeFilePayloadSchema, payload)
+    return authorizePrototypePath(request.path, request.workspaceRoot)
+  })
+  ipcMain.handle('write:open-prototype', async (_, payload: unknown) => {
+    const request = parseIpcPayload('write:open-prototype', writePrototypeFilePayloadSchema, payload)
+    const authorized = await authorizePrototypePath(request.path, request.workspaceRoot)
+    if (!authorized.ok) return authorized
+    return openPathWithShell(authorized.absolutePath)
+  })
   ipcMain.handle('speech:transcribe', async (_, payload: unknown) =>
     requestSpeechTranscription(
       await store.load(),

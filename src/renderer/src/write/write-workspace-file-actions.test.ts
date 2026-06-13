@@ -12,6 +12,7 @@ function makeBaseState(): WriteWorkspaceState {
     inlineCompletionApiReady: false,
     selectionAssist: defaultWriteSettings().selectionAssist,
     imageGenReady: false,
+    prototypeReady: false,
     settingsLoading: false,
     settingsError: null,
     ...initialState(),

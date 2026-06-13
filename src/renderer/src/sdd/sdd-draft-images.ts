@@ -1,4 +1,4 @@
-import { isSddImageRelativePath, normalizeSddRelativePath } from '@shared/sdd'
+import { isSddImageRelativePath, isSddPrototypeRelativePath, normalizeSddRelativePath } from '@shared/sdd'
 
 export type SddDraftImageReference = {
   index: number
@@ -131,6 +131,10 @@ export async function collectSddDraftImages(input: {
       continue
     }
     const normalizedPath = normalizeSddRelativePath(relativePath)
+    // Interactive prototypes are embedded with image syntax but are HTML
+    // documents, not images: leave the link in the markdown (the build agent
+    // can open the file) and never read it as an image.
+    if (isSddPrototypeRelativePath(normalizedPath)) continue
     if (!isSddImageRelativePath(normalizedPath)) {
       errors.push(`SDD images must live under .kunsdd/img: ${parsed.markdownPath}`)
       continue

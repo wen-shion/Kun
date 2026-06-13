@@ -18,6 +18,7 @@ import {
   CodeBlockToolbarWidget,
   CodeBlockWidget,
   HrWidget,
+  HtmlEmbedWidget,
   ImageWidget,
   InfographicPendingWidget,
   ListBulletWidget,
@@ -30,6 +31,7 @@ import {
   type ParsedTable
 } from './markdown-live-widgets'
 import { parsePendingInfographicImage } from './infographic-pending'
+import { isHtmlEmbedSrc } from '@shared/write-prototype'
 
 type DecorationRange = {
   from: number
@@ -44,6 +46,7 @@ type BlockRange = {
 
 type MarkdownImageContext = {
   filePath?: string | null
+  workspaceRoot?: string | null
 }
 
 const CONCEAL_MARKS = new Set([
@@ -154,19 +157,25 @@ function rangeTouchesActiveLine(state: EditorState, from: number, to: number, ac
   return false
 }
 
+function parseMarkdownImageSource(source: string): { alt: string; rawSrc: string } | null {
+  const match = /^!\[([^\]]*)\]\(\s*(?:<([^>]*)>|([^)\s]+))(?:\s+["'][^"']*["'])?\s*\)$/.exec(source.trim())
+  if (!match) return null
+  return { alt: match[1] || '', rawSrc: match[2] ?? match[3] ?? '' }
+}
+
 function markdownImageFromSource(source: string, filePath?: string | null): {
   src: string
   alt: string
   localPath?: string
 } | null {
-  const match = /^!\[([^\]]*)\]\(\s*(?:<([^>]*)>|([^)\s]+))(?:\s+["'][^"']*["'])?\s*\)$/.exec(source.trim())
-  if (!match) return null
-  const rawSrc = match[2] ?? match[3] ?? ''
+  const parsed = parseMarkdownImageSource(source)
+  if (!parsed) return null
+  const { alt, rawSrc } = parsed
   const resolved = resolveWriteMarkdownImage(rawSrc, filePath)
   if (!resolved.fallbackSrc && !resolved.localPath) return null
   const initialSrc = initialWriteMarkdownImageSrc(rawSrc, filePath) ?? ''
   return {
-    alt: match[1] || '',
+    alt,
     src: initialSrc,
     ...(resolved.localPath ? { localPath: resolved.localPath } : {})
   }
@@ -616,6 +625,24 @@ function buildMarkdownDecorations(view: EditorView): DecorationSet {
               })
               return false
             }
+            // HTML prototypes branch before the image resolver: it would
+            // happily build an ImageWidget for any extension and fail to load.
+            const inlineImage = parseMarkdownImageSource(source)
+            if (inlineImage && isHtmlEmbedSrc(inlineImage.rawSrc)) {
+              ranges.push({
+                from: node.from,
+                to: node.to,
+                deco: Decoration.replace({
+                  widget: new HtmlEmbedWidget(
+                    inlineImage.rawSrc,
+                    inlineImage.alt,
+                    imageContext.filePath ?? null,
+                    imageContext.workspaceRoot ?? null
+                  )
+                })
+              })
+              return false
+            }
             const parsed = markdownImageFromSource(source, imageContext.filePath)
             if (parsed) {
               ranges.push({
@@ -700,10 +727,13 @@ const markdownLivePreviewPlugin = ViewPlugin.fromClass(
   }
 )
 
-export function writeMarkdownLivePreviewExtensions(filePath?: string | null): Extension[] {
+export function writeMarkdownLivePreviewExtensions(
+  filePath?: string | null,
+  workspaceRoot?: string | null
+): Extension[] {
   return [
     EditorView.editorAttributes.of({ class: 'cm-write-live-preview' }),
-    markdownImageContextFacet.of({ filePath }),
+    markdownImageContextFacet.of({ filePath, workspaceRoot }),
     syntaxHighlighting(writeMarkdownHighlight),
     writeMarkdownLiveTheme,
     markdownBlockPreviewField,
