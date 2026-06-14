@@ -18,6 +18,7 @@ import {
 import { rendererRuntimeClient } from '../agent/runtime-client'
 import { getProvider } from '../agent/registry'
 import type {
+  CoreMemoryDiagnosticsJson,
   CoreMemoryRecordJson,
   CoreRuntimeInfoJson,
   CoreRuntimeToolDiagnosticsJson
@@ -55,13 +56,14 @@ import {
   KeyboardShortcutsSettingsSection,
   LlmDebugSettingsSection,
   MediaGenerationSettingsSection,
+  MemorySettingsSection,
   ProvidersSettingsSection,
   SpeechToTextSettingsSection,
   UpdatesSettingsSection,
   WriteSettingsSection
 } from './settings-sections'
 
-type SettingsCategory = 'general' | 'providers' | 'write' | 'imageGeneration' | 'mediaGeneration' | 'speechToText' | 'agents' | 'permissions' | 'shortcuts' | 'easterEgg' | 'claw' | 'updates' | 'debug'
+type SettingsCategory = 'agents' | 'claw' | 'debug' | 'easterEgg' | 'general' | 'imageGeneration' | 'mediaGeneration' | 'memory' | 'permissions' | 'providers' | 'shortcuts' | 'speechToText' | 'updates' | 'write'
 type SaveStatus = 'idle' | 'saving' | 'saved' | 'error'
 type SettingsPatch = AppSettingsPatch
 type SkillRootOption = {
@@ -113,6 +115,7 @@ export function SettingsView(): ReactElement {
   const [runtimeInfo, setRuntimeInfo] = useState<CoreRuntimeInfoJson | null>(null)
   const [toolDiagnostics, setToolDiagnostics] = useState<CoreRuntimeToolDiagnosticsJson | null>(null)
   const [memoryRecords, setMemoryRecords] = useState<CoreMemoryRecordJson[]>([])
+  const [memoryDiagnostics, setMemoryDiagnostics] = useState<CoreMemoryDiagnosticsJson | null>(null)
   const [runtimeDiagnosticsBusy, setRuntimeDiagnosticsBusy] = useState(false)
   const [runtimeDiagnosticsNotice, setRuntimeDiagnosticsNotice] = useState<InlineNotice | null>(null)
   const [writeDebugModalOpen, setWriteDebugModalOpen] = useState(false)
@@ -471,9 +474,61 @@ export function SettingsView(): ReactElement {
   }, [formWorkspaceRoot])
 
   useEffect(() => {
-    if (category !== 'agents' && category !== 'permissions') return
+    if (category !== 'agents' && category !== 'permissions' && category !== 'memory') return
     void refreshKunDiagnostics()
   }, [category, refreshKunDiagnostics])
+
+  const refreshMemoryDiagnostics = async (): Promise<void> => {
+    const provider = getProvider()
+    if (typeof provider.getMemoryDiagnostics !== 'function') return
+    try {
+      const diagnostics = await provider.getMemoryDiagnostics()
+      setMemoryDiagnostics(diagnostics)
+    } catch {
+      // best-effort; surfaced via runtimeDiagnosticsNotice elsewhere
+    }
+  }
+
+  useEffect(() => {
+    if (category !== 'memory') return
+    void refreshMemoryDiagnostics()
+  }, [category, memoryRecords])
+
+  const createMemoryRecord = async (input: {
+    content: string
+    scope?: 'user' | 'workspace' | 'project'
+    tags?: string[]
+    confidence?: number
+  }): Promise<void> => {
+    const provider = getProvider()
+    if (typeof provider.createMemory !== 'function') return
+    try {
+      const memory = await provider.createMemory(input)
+      setMemoryRecords((records) => [memory, ...records])
+    } catch (error) {
+      setRuntimeDiagnosticsNotice({
+        tone: 'error',
+        message: error instanceof Error ? error.message : String(error)
+      })
+    }
+  }
+
+  const updateMemoryRecord = async (
+    memoryId: string,
+    patch: { content?: string; tags?: string[]; confidence?: number; disabled?: boolean }
+  ): Promise<void> => {
+    const provider = getProvider()
+    if (typeof provider.updateMemory !== 'function') return
+    try {
+      const memory = await provider.updateMemory(memoryId, patch)
+      setMemoryRecords((records) => records.map((record) => (record.id === memoryId ? memory : record)))
+    } catch (error) {
+      setRuntimeDiagnosticsNotice({
+        tone: 'error',
+        message: error instanceof Error ? error.message : String(error)
+      })
+    }
+  }
 
   const disableMemoryRecord = async (memoryId: string): Promise<void> => {
     const provider = getProvider()
@@ -841,9 +896,12 @@ export function SettingsView(): ReactElement {
     runtimeInfo,
     toolDiagnostics,
     memoryRecords,
+    memoryDiagnostics,
     runtimeDiagnosticsBusy,
     runtimeDiagnosticsNotice,
     refreshKunDiagnostics,
+    createMemoryRecord,
+    updateMemoryRecord,
     disableMemoryRecord,
     deleteMemoryRecord,
     pickClawWorkspace,
@@ -913,6 +971,7 @@ export function SettingsView(): ReactElement {
           {category === 'mediaGeneration' ? <MediaGenerationSettingsSection ctx={settingsSectionContext} /> : null}
           {category === 'speechToText' ? <SpeechToTextSettingsSection ctx={settingsSectionContext} /> : null}
           {category === 'agents' || category === 'permissions' ? <AgentsSettingsSection ctx={settingsSectionContext} /> : null}
+          {category === 'memory' ? <MemorySettingsSection ctx={settingsSectionContext} /> : null}
           {category === 'shortcuts' ? <KeyboardShortcutsSettingsSection ctx={settingsSectionContext} /> : null}
           {category === 'easterEgg' ? <EasterEggSettingsSection ctx={settingsSectionContext} /> : null}
           {category === 'claw' ? <ClawSettingsSection ctx={settingsSectionContext} /> : null}
