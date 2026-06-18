@@ -43,11 +43,15 @@ import {
   type ModelConfig
 } from '../loop/model-context-profile.js'
 import {
+  DEFAULT_QUALITY_CONFIG,
   DEFAULT_STORAGE_CONFIG,
   expandHomePath,
+  type QualityConfig,
   type RuntimeTuningConfig,
   type StorageConfig
 } from '../config/kun-config.js'
+import { buildBuiltinHooks } from '../hooks/builtins/index.js'
+import { mergeBuiltinSubagentProfiles } from '../delegation/builtin-profiles.js'
 import { InflightTracker } from '../loop/inflight-tracker.js'
 import { SteeringQueue } from '../loop/steering-queue.js'
 import { RandomIdGenerator } from '../ports/id-generator.js'
@@ -93,6 +97,8 @@ export type KunServeRuntimeOptions = {
   capabilities?: KunCapabilitiesConfig
   /** Command hooks from config.json; resolved and wired into tool hosts and the loop. */
   hooks?: HooksConfig
+  /** Design-quality linter config; drives the builtin PostToolUse hook. */
+  quality?: QualityConfig
   startedAt?: string
 }
 
@@ -236,7 +242,13 @@ export async function createKunServeRuntime(
     // control must not be delegable to subagents. It is added to the main
     // registry only (below).
   ]
-  const resolvedHooks = resolveConfiguredHooks(options.hooks)
+  // Builtin hooks are first-party and always assembled before config hooks.
+  // The design-quality linter folds findings into write/edit results so the
+  // model self-corrects; config-loaded command hooks run after it.
+  const resolvedHooks = [
+    ...buildBuiltinHooks({ quality: options.quality ?? DEFAULT_QUALITY_CONFIG }),
+    ...resolveConfiguredHooks(options.hooks)
+  ]
   const childRegistry = new CapabilityRegistry(baseToolProviders)
   const childToolHost = new LocalToolHost({
     registry: childRegistry,
@@ -245,7 +257,7 @@ export async function createKunServeRuntime(
   })
   const delegationRuntime = options.capabilities?.subagents.enabled
     ? new DelegationRuntime({
-        config: options.capabilities.subagents,
+        config: mergeBuiltinSubagentProfiles(options.capabilities.subagents),
         store: new FileDelegationStore(join(options.dataDir, 'child-runs')),
         events,
         nowIso,

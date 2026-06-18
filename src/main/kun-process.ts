@@ -23,6 +23,7 @@ import {
   KunServeConfigSchema,
   ModelConfigSchema,
   ContextCompactionConfigSchema,
+  QualityConfigSchema,
   RuntimeTuningConfigSchema
 } from '../../kun/src/config/kun-config.js'
 import {
@@ -376,6 +377,7 @@ export async function syncGuiManagedKunConfig(
     | 'computerUse'
     | 'modelProfiles'
     | 'memoryEnabled'
+    | 'quality'
   >,
   options?: {
     scheduleMcp?: {
@@ -399,6 +401,7 @@ export async function syncGuiManagedKunConfig(
   const existingContextCompaction = objectValue(existing?.contextCompaction)
   const existingModels = objectValue(existing?.models)
   const existingRuntimeTuning = objectValue(existing?.runtime)
+  const existingQuality = objectValue(existing?.quality)
   const capabilities = objectValue(existing?.capabilities)
   const mcp = objectValue(capabilities.mcp)
   const search = objectValue(mcp.search)
@@ -423,6 +426,7 @@ export async function syncGuiManagedKunConfig(
     models: modelConfigForRuntime(existingModels, runtime.modelProfiles),
     contextCompaction: contextCompactionConfigForRuntime(runtime.contextCompaction, existingContextCompaction),
     runtime: runtimeTuningConfigForRuntime(runtime.runtimeTuning, existingRuntimeTuning),
+    quality: qualityConfigForRuntime(runtime.quality, existingQuality),
     capabilities: {
       ...capabilities,
       attachments: {
@@ -900,6 +904,20 @@ function runtimeTuningConfigForRuntime(
   }
 }
 
+function qualityConfigForRuntime(
+  quality: Pick<KunRuntimeSettingsV1, 'quality'>['quality'],
+  existing: Record<string, unknown>
+): Record<string, unknown> {
+  return {
+    ...existing,
+    enabled: quality.enabled,
+    strictness: quality.strictness,
+    ignoreRules: [...quality.ignoreRules],
+    ignoreFiles: [...quality.ignoreFiles],
+    maxFindings: quality.maxFindings
+  }
+}
+
 async function readJsonObjectIfExists(path: string): Promise<Record<string, unknown> | null> {
   try {
     const text = await readFile(path, 'utf8')
@@ -961,6 +979,7 @@ function sanitizeKunConfigSections(
       existing.contextCompaction
     ),
     runtime: parseKunConfigSection(RuntimeTuningConfigSchema, existing.runtime),
+    quality: parseKunConfigSection(QualityConfigSchema, existing.quality),
     capabilities: sanitizeKunCapabilitiesConfig(existing.capabilities)
   }
 }

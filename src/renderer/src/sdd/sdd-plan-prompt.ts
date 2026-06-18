@@ -1,4 +1,6 @@
 import type { SddDraftImageReference } from './sdd-draft-images'
+import type { SddDesignContext } from './sdd-draft-store'
+import { formatSddDesignContextLines } from './sdd-design-context'
 import { composeFrameworkGuidance } from './pm-skill-frameworks'
 
 export type SddPlanImageMode = 'attachments' | 'base64' | 'none'
@@ -46,6 +48,7 @@ export function buildSddDraftToPlanPrompt(options: {
   workspaceRoot: string
   images: SddDraftImageReference[]
   imageMode: SddPlanImageMode
+  designContext?: SddDesignContext
 }): string {
   const imageInstruction =
     options.imageMode === 'attachments'
@@ -89,6 +92,7 @@ export function buildSddDraftToPlanPrompt(options: {
     '',
     ...imageReferenceMap(options.images, options.imageMode),
     '',
+    ...formatSddDesignContextLines(options.designContext),
     'Plan expectations:',
     '- Preserve the user intent from the draft.',
     '- Turn fuzzy requirement notes into concrete implementation steps.',

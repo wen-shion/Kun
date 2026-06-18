@@ -21,6 +21,22 @@ const BUILTIN_KEYS: Record<string, { labelKey: string; promptKey: string }> = {
   reformat: {
     labelKey: 'writeQuickActionReformat',
     promptKey: 'writeQuickActionReformatPrompt'
+  },
+  distill: {
+    labelKey: 'writeQuickActionDistill',
+    promptKey: 'writeQuickActionDistillPrompt'
+  },
+  bolder: {
+    labelKey: 'writeQuickActionBolder',
+    promptKey: 'writeQuickActionBolderPrompt'
+  },
+  quieter: {
+    labelKey: 'writeQuickActionQuieter',
+    promptKey: 'writeQuickActionQuieterPrompt'
+  },
+  critique: {
+    labelKey: 'writeQuickActionCritique',
+    promptKey: 'writeQuickActionCritiquePrompt'
   }
 }
 

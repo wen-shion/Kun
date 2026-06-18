@@ -10,6 +10,7 @@ import {
   DEFAULT_KUN_MODEL,
   DEFAULT_STORAGE_CONFIG,
   ModelConfigSchema,
+  QualityConfigSchema,
   RuntimeTuningConfigSchema,
   StorageConfigSchema,
   TokenEconomyConfigSchema
@@ -56,7 +57,8 @@ export const ServeOptionsSchema = z.object({
   contextCompaction: ContextCompactionConfigSchema.optional(),
   runtime: RuntimeTuningConfigSchema.optional(),
   capabilities: KunCapabilitiesConfig.default(DEFAULT_KUN_CAPABILITIES_CONFIG),
-  hooks: HooksConfigSchema.optional()
+  hooks: HooksConfigSchema.optional(),
+  quality: QualityConfigSchema.optional()
 })
 export type ServeOptions = z.infer<typeof ServeOptionsSchema>
 

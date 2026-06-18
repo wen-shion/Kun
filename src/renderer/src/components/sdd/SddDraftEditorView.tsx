@@ -7,7 +7,8 @@ import { parseSddRequirementBlocks } from '@shared/sdd-trace'
 import { WRITE_INFOGRAPHIC_MAX_TEXT_CHARS, type WriteInfographicKind } from '@shared/write-infographic'
 import { WRITE_PROTOTYPE_MAX_TEXT_CHARS } from '@shared/write-prototype'
 import { useSddTrace } from '../../sdd/use-sdd-trace'
-import { useSddDraftStore } from '../../sdd/sdd-draft-store'
+import { useSddDraftStore, type SddDesignContext } from '../../sdd/sdd-draft-store'
+import { SDD_DESIGN_TONE_OPTIONS } from '../../sdd/sdd-design-context'
 import { saveActiveSddDraftToDisk, syncActiveSddDraftFromDisk } from '../../sdd/sdd-draft-actions'
 import { buildSddPrototypeTurnPrompt } from '../../sdd/sdd-prototype-prompt'
 import { useWriteWorkspaceStore } from '../../write/write-workspace-store'
@@ -101,6 +102,123 @@ type Props = {
   nextDisabled: boolean
 }
 
+function SddDesignContextBar({
+  designContext,
+  onChange
+}: {
+  designContext: SddDesignContext | undefined
+  onChange: (patch: Partial<SddDesignContext>) => void
+}): ReactElement {
+  const { t } = useTranslation('common')
+  const [open, setOpen] = useState(false)
+  const tone = designContext?.tone ?? []
+  const brandColor = designContext?.brandColor ?? ''
+  const isHexBrandColor = /^#[0-9a-fA-F]{6}$/.test(brandColor)
+  // The native color swatch can only represent 6-digit hex. When the user has
+  // typed a non-hex value (oklch/named), don't let the swatch silently clobber
+  // it — keep the text field as the source of truth for those.
+  const colorInputValue = isHexBrandColor ? brandColor : '#3b82d8'
+  const swatchEditable = brandColor === '' || isHexBrandColor
+  const toggleTone = (value: string): void => {
+    const next = tone.includes(value) ? tone.filter((item) => item !== value) : [...tone, value]
+    onChange({ tone: next })
+  }
+  const summaryParts = [
+    designContext?.designType ? t(`sddDesignType_${designContext.designType}`) : null,
+    brandColor || null,
+    tone.length ? tone.join('·') : null
+  ].filter(Boolean) as string[]
+  const summary = summaryParts.length > 0 ? summaryParts.join(' · ') : t('sddDesignContextEmpty')
+  const chipClass = (active: boolean): string =>
+    `rounded-full border px-2.5 py-1 text-[12px] transition-colors ${
+      active
+        ? 'border-ds-accent bg-ds-accent/12 text-ds-accent'
+        : 'border-ds-border-muted bg-ds-main/40 text-ds-muted hover:text-ds-ink'
+    }`
+  return (
+    <div className="mt-2 rounded-[14px] border border-ds-border-muted bg-ds-card/70">
+      <button
+        type="button"
+        onClick={() => setOpen((value) => !value)}
+        className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left"
+      >
+        <span className="flex items-center gap-1.5 text-[13px] font-medium text-ds-ink">
+          <Sparkles className="h-3.5 w-3.5 text-ds-accent" />
+          {t('sddDesignContextTitle')}
+        </span>
+        <span className="min-w-0 flex-1 truncate text-right text-[12px] text-ds-faint">{summary}</span>
+      </button>
+      {open ? (
+        <div className="space-y-3 border-t border-ds-border-muted px-3 py-3">
+          <div>
+            <div className="mb-1.5 text-[12px] text-ds-muted">{t('sddDesignTypeLabel')}</div>
+            <div className="flex gap-2">
+              {(['brand', 'product'] as const).map((value) => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => onChange({ designType: value })}
+                  className={chipClass(designContext?.designType === value)}
+                >
+                  {t(`sddDesignType_${value}`)}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div>
+            <div className="mb-1.5 text-[12px] text-ds-muted">{t('sddDesignBrandColorLabel')}</div>
+            <div className="flex items-center gap-2">
+              <input
+                type="color"
+                aria-label={t('sddDesignBrandColorLabel')}
+                value={colorInputValue}
+                disabled={!swatchEditable}
+                onChange={(e) => {
+                  if (swatchEditable) onChange({ brandColor: e.target.value })
+                }}
+                className={`h-7 w-9 rounded border border-ds-border-muted bg-transparent ${
+                  swatchEditable ? 'cursor-pointer' : 'cursor-not-allowed opacity-40'
+                }`}
+              />
+              <input
+                type="text"
+                value={brandColor}
+                placeholder={t('sddDesignBrandColorPlaceholder')}
+                onChange={(e) => onChange({ brandColor: e.target.value })}
+                className="h-7 flex-1 rounded-lg border border-ds-border-muted bg-ds-main/40 px-2 text-[12px] text-ds-ink outline-none focus:border-ds-accent"
+              />
+              {brandColor ? (
+                <button
+                  type="button"
+                  onClick={() => onChange({ brandColor: '' })}
+                  className="text-[12px] text-ds-faint hover:text-ds-ink"
+                >
+                  {t('clear')}
+                </button>
+              ) : null}
+            </div>
+          </div>
+          <div>
+            <div className="mb-1.5 text-[12px] text-ds-muted">{t('sddDesignToneLabel')}</div>
+            <div className="flex flex-wrap gap-1.5">
+              {SDD_DESIGN_TONE_OPTIONS.map((value) => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => toggleTone(value)}
+                  className={chipClass(tone.includes(value))}
+                >
+                  {value}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
 function SddRequirementProgress({ content }: { content: string }): ReactElement | null {
   const { t } = useTranslation('common')
   const blocks = useMemo(() => parseSddRequirementBlocks(content), [content])
@@ -190,7 +308,8 @@ export function SddDraftEditorView({
     operationStatus,
     error,
     setContent,
-    setOperationStatus
+    setOperationStatus,
+    updateDesignContext
   } = useSddDraftStore(
     useShallow((s) => ({
       activeDraft: s.activeDraft,
@@ -199,7 +318,8 @@ export function SddDraftEditorView({
       operationStatus: s.operationStatus,
       error: s.error,
       setContent: s.setContent,
-      setOperationStatus: s.setOperationStatus
+      setOperationStatus: s.setOperationStatus,
+      updateDesignContext: s.updateDesignContext
     }))
   )
   const {
@@ -691,7 +811,8 @@ export function SddDraftEditorView({
         text,
         prototypeRelativePath: `${unitProtoDir}/${fileName}`,
         workspaceRoot: draftWorkspaceRoot,
-        customPrompt: selectionAssist.prototypePrompt
+        customPrompt: selectionAssist.prototypePrompt,
+        ...(activeDraft?.designContext ? { designContext: activeDraft.designContext } : {})
       }),
       displayText: t('writePrototypeGenerate')
     })
@@ -740,7 +861,8 @@ export function SddDraftEditorView({
           mode: 'image',
           prototypeRelativePath: `${unitProtoDir}/${fileName}`,
           workspaceRoot: draftWorkspaceRoot,
-          customPrompt: selectionAssist.prototypePrompt
+          customPrompt: selectionAssist.prototypePrompt,
+          ...(activeDraft?.designContext ? { designContext: activeDraft.designContext } : {})
         }),
         displayText: t('writePrototypeGenerate'),
         image: { absolutePath: absoluteImagePath, alt: image.alt }
@@ -1032,6 +1154,8 @@ export function SddDraftEditorView({
       </div>
 
       <SddRequirementProgress content={content} />
+
+      <SddDesignContextBar designContext={activeDraft.designContext} onChange={updateDesignContext} />
 
       <div ref={editorPaneRef} className="min-h-0 min-w-0 flex-1 overflow-hidden pb-3 pt-2">
         <div

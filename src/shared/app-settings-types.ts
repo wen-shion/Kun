@@ -221,6 +221,23 @@ export type KunRuntimeSettingsV1 = {
   memoryEnabled: boolean
   /** Host computer-use (screenshot + mouse/keyboard control) settings. */
   computerUse: KunComputerUseSettingsV1
+  /** First-party design-quality linter applied to frontend output. */
+  quality: KunDesignQualitySettingsV1
+}
+
+/** Detection aggressiveness for the design-quality linter. */
+export type KunDesignQualityStrictness = 'relaxed' | 'standard' | 'strict'
+
+export type KunDesignQualitySettingsV1 = {
+  /** Master switch. Off means the builtin design-quality hook never fires. */
+  enabled: boolean
+  strictness: KunDesignQualityStrictness
+  /** Rule ids to suppress. */
+  ignoreRules: string[]
+  /** Relative-path glob patterns to skip. */
+  ignoreFiles: string[]
+  /** Cap on findings folded into a single tool result. */
+  maxFindings: number
 }
 
 export type KunComputerUseSettingsV1 = {
@@ -411,7 +428,7 @@ export type KunTokenEconomySettingsPatchV1 = Partial<
 export type KunRuntimeSettingsPatchV1 = Partial<
   Omit<
     KunRuntimeSettingsV1,
-    'mcpSearch' | 'storage' | 'contextCompaction' | 'runtimeTuning' | 'tokenEconomy' | 'imageGeneration' | 'speechToText' | 'textToSpeech' | 'musicGeneration' | 'videoGeneration' | 'computerUse' | 'modelProfiles'
+    'mcpSearch' | 'storage' | 'contextCompaction' | 'runtimeTuning' | 'tokenEconomy' | 'imageGeneration' | 'speechToText' | 'textToSpeech' | 'musicGeneration' | 'videoGeneration' | 'computerUse' | 'quality' | 'modelProfiles'
   >
 > & {
   mcpSearch?: Partial<KunMcpSearchSettingsV1>
@@ -425,6 +442,7 @@ export type KunRuntimeSettingsPatchV1 = Partial<
   musicGeneration?: Partial<KunMusicGenerationSettingsV1>
   videoGeneration?: Partial<KunVideoGenerationSettingsV1>
   computerUse?: Partial<KunComputerUseSettingsV1>
+  quality?: Partial<KunDesignQualitySettingsV1>
   modelProfiles?: Record<string, ModelProviderModelProfilePatchV1 | null>
 }
 

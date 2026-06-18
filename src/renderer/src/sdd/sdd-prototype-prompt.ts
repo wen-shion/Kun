@@ -1,4 +1,6 @@
 import { WRITE_PROTOTYPE_DEFAULT_PROMPT, WRITE_PROTOTYPE_MAX_TEXT_CHARS } from '@shared/write-prototype'
+import type { SddDesignContext } from './sdd-draft-store'
+import { formatSddDesignContextLines } from './sdd-design-context'
 
 export type SddPrototypeTurnOptions = {
   mode: 'text' | 'image'
@@ -9,6 +11,8 @@ export type SddPrototypeTurnOptions = {
   workspaceRoot: string
   /** write.selectionAssist.prototypePrompt; empty = built-in default. */
   customPrompt?: string
+  /** Requirement design context, injected so the mockup honors brand/tone. */
+  designContext?: SddDesignContext
 }
 
 /**
@@ -33,6 +37,10 @@ export function buildSddPrototypeTurnPrompt(options: SddPrototypeTurnOptions): s
     '- The file content must be raw HTML — no markdown fences, no commentary inside the file.',
     '- Finish with the document ending in `</html>`, then reply with a one-paragraph summary of the interactions you implemented.'
   ]
+  const designContextLines = formatSddDesignContextLines(options.designContext)
+  if (designContextLines.length > 0) {
+    lines.push('', ...designContextLines)
+  }
   if (options.mode === 'image') {
     lines.push(
       '',

@@ -37,7 +37,15 @@ import { getActiveAgentApiKey, getKunRuntimeSettings } from './app-settings-kun'
 import { getModelProviderProfile, resolveModelProviderBaseUrl } from './app-settings-provider'
 import { compactStrings } from './app-settings-normalizers'
 
-export const WRITE_QUICK_ACTION_BUILTIN_IDS = ['polish', 'explain', 'reformat'] as const
+export const WRITE_QUICK_ACTION_BUILTIN_IDS = [
+  'polish',
+  'explain',
+  'reformat',
+  'distill',
+  'bolder',
+  'quieter',
+  'critique'
+] as const
 
 // Retired built-ins: pristine stored rows (label and prompt empty, i.e. "use
 // the built-in defaults") are dropped on normalization since the defaults no
@@ -56,7 +64,13 @@ export const WRITE_QUICK_ACTION_PROMPT_MAX_CHARS = 4_000
 const WRITE_QUICK_ACTION_BUILTIN_MODES: Record<string, WriteQuickActionMode> = {
   polish: 'chat',
   explain: 'chat',
-  reformat: 'edit'
+  reformat: 'edit',
+  // Design-vocabulary transforms + review. Whole-selection rewrites go through
+  // the sidebar assistant (like polish); critique is a read-only review.
+  distill: 'chat',
+  bolder: 'chat',
+  quieter: 'chat',
+  critique: 'chat'
 }
 
 export function builtinWriteQuickActionMode(id: string): WriteQuickActionMode {
@@ -141,6 +155,11 @@ export function normalizeWriteSelectionAssistSettings(
     quickActions.push({ id, label, prompt, mode })
     if (quickActions.length >= WRITE_QUICK_ACTION_MAX_COUNT) break
   }
+  // NOTE: built-in ids absent from the stored list are intentionally NOT
+  // re-added here — this runs on every settings-form keystroke, so appending
+  // would make a built-in row impossible to delete. New built-ins (e.g. the
+  // design actions) therefore reach existing users via a settings reset or
+  // manual add; fresh installs get them from defaultWriteQuickActions().
   return { infographicPrompt, designDraftPrompt, prototypePrompt, quickActions }
 }
 

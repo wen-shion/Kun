@@ -5,6 +5,18 @@ import { browserStorage } from '../lib/browser-storage'
 export type SddDraftSaveStatus = 'saved' | 'dirty' | 'saving' | 'error'
 export type SddDraftOperationStatus = 'idle' | 'upgrading' | 'error'
 
+/** Whether this requirement's surface is brand-led or product-led. */
+export type SddDesignType = 'brand' | 'product'
+
+/** Design intent captured on a requirement; injected into plan/prototype prompts. */
+export type SddDesignContext = {
+  designType?: SddDesignType
+  /** Anchor brand color (any CSS color string), optional. */
+  brandColor?: string
+  /** Free-form tone chips, e.g. 编辑风 / 专业 / 活泼. */
+  tone?: string[]
+}
+
 export type SddDraft = {
   id: string
   workspaceRoot: string
@@ -12,6 +24,8 @@ export type SddDraft = {
   absolutePath?: string
   createdAt: string
   updatedAt: string
+  /** Optional design intent surfaced to generation prompts. */
+  designContext?: SddDesignContext
 }
 
 type PersistedSddDraftRegistry = {
@@ -44,6 +58,8 @@ export type SddDraftState = {
     }
   ) => void
   setContent: (content: string) => void
+  /** Merge a design-context patch into the active draft and persist it. */
+  updateDesignContext: (patch: Partial<SddDesignContext>) => void
   setSaveStatus: (status: SddDraftSaveStatus, error?: string | null) => void
   markSaved: (content: string) => void
   setOperationStatus: (status: SddDraftOperationStatus, error?: string | null) => void
@@ -81,6 +97,23 @@ function normalizeContentSnapshot(raw: unknown, fallbackDraftId = ''): SddDraftC
   }
 }
 
+export function normalizeSddDesignContext(raw: unknown): SddDesignContext | undefined {
+  if (!isRecord(raw)) return undefined
+  const out: SddDesignContext = {}
+  const designType = normalizeText(raw.designType)
+  if (designType === 'brand' || designType === 'product') out.designType = designType
+  const brandColor = normalizeText(raw.brandColor)
+  if (brandColor) out.brandColor = brandColor.slice(0, 64)
+  if (Array.isArray(raw.tone)) {
+    const tone = raw.tone
+      .filter((item): item is string => typeof item === 'string' && item.trim().length > 0)
+      .map((item) => item.trim().slice(0, 40))
+      .slice(0, 12)
+    if (tone.length) out.tone = tone
+  }
+  return Object.keys(out).length ? out : undefined
+}
+
 function normalizeDraft(raw: unknown, fallbackId = ''): SddDraft | null {
   if (!isRecord(raw)) return null
   const id = normalizeText(raw.id) || normalizeText(fallbackId)
@@ -94,13 +127,15 @@ function normalizeDraft(raw: unknown, fallbackId = ''): SddDraft | null {
   const absolutePath = normalizeText(raw.absolutePath)
   const createdAt = normalizeText(raw.createdAt) || new Date(0).toISOString()
   const updatedAt = normalizeText(raw.updatedAt) || createdAt
+  const designContext = normalizeSddDesignContext(raw.designContext)
   return {
     id,
     workspaceRoot,
     relativePath,
     ...(absolutePath ? { absolutePath } : {}),
     createdAt,
-    updatedAt
+    updatedAt,
+    ...(designContext ? { designContext } : {})
   }
 }
 
@@ -276,6 +311,20 @@ export const useSddDraftStore = create<SddDraftState>((set) => ({
         saveStatus: content === state.lastSavedContent ? 'saved' : 'dirty',
         error: state.saveStatus === 'error' ? null : state.error
       }
+    }),
+
+  updateDesignContext: (patch) =>
+    set((state) => {
+      if (!state.activeDraft) return {}
+      const merged = normalizeSddDesignContext({
+        ...(state.activeDraft.designContext ?? {}),
+        ...patch
+      })
+      const activeDraft: SddDraft = { ...state.activeDraft }
+      if (merged) activeDraft.designContext = merged
+      else delete activeDraft.designContext
+      rememberSddDraft(activeDraft)
+      return { activeDraft }
     }),
 
   setSaveStatus: (status, error = null) => set({ saveStatus: status, error }),

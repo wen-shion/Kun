@@ -382,6 +382,21 @@ export function AgentsSettingsSection({ ctx }: { ctx: Record<string, any> }): Re
       }
     })
   }
+  const quality = kun.quality ?? {
+    enabled: true,
+    strictness: 'standard' as const,
+    ignoreRules: [],
+    ignoreFiles: [],
+    maxFindings: 12
+  }
+  const updateQuality = (patch: Record<string, unknown>): void => {
+    updateKun({
+      quality: {
+        ...quality,
+        ...patch
+      }
+    })
+  }
   const activeProviderId = kun.providerId?.trim() || DEFAULT_MODEL_PROVIDER_ID
   const activeProvider = modelProviders.find((item) => item.id === activeProviderId) ?? modelProviders[0]
   const activeProviderModels = activeProvider?.models ?? []
@@ -665,6 +680,41 @@ export function AgentsSettingsSection({ ctx }: { ctx: Record<string, any> }): Re
                       />
                       <ComputerUsePermissionRow t={t} />
                     </>
+                  ) : null}
+                </SettingsCard>
+              </div>
+
+              <div className="mt-6">
+                <SettingsCard title={t('designQualityTitle')}>
+                  <div className="px-3 py-4">
+                    <InlineNoticeView notice={{ tone: 'info', message: t('designQualityHint') }} />
+                  </div>
+                  <SettingRow
+                    title={t('designQualityEnable')}
+                    description={t('designQualityEnableDesc')}
+                    control={
+                      <Toggle
+                        checked={quality.enabled}
+                        onChange={(enabled) => updateQuality({ enabled })}
+                      />
+                    }
+                  />
+                  {quality.enabled ? (
+                    <SettingRow
+                      title={t('designQualityStrictness')}
+                      description={t('designQualityStrictnessDesc')}
+                      control={
+                        <select
+                          className={selectControlClass}
+                          value={quality.strictness}
+                          onChange={(e) => updateQuality({ strictness: e.target.value })}
+                        >
+                          <option value="relaxed">{t('designQualityStrictnessRelaxed')}</option>
+                          <option value="standard">{t('designQualityStrictnessStandard')}</option>
+                          <option value="strict">{t('designQualityStrictnessStrict')}</option>
+                        </select>
+                      }
+                    />
                   ) : null}
                 </SettingsCard>
               </div>

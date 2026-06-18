@@ -354,6 +354,13 @@ const kunRuntimePatchSchema = z.object({
       maxStringBytes: z.number().int().positive().max(16 * 1024 * 1024).optional()
     }).strict().optional()
   }).strict().optional(),
+  quality: z.object({
+    enabled: z.boolean().optional(),
+    strictness: z.enum(['relaxed', 'standard', 'strict']).optional(),
+    ignoreRules: z.array(z.string().trim().min(1).max(128)).max(200).optional(),
+    ignoreFiles: z.array(z.string().trim().min(1).max(256)).max(200).optional(),
+    maxFindings: z.number().int().positive().max(100).optional()
+  }).strict().optional(),
   imageGeneration: z.object({
     enabled: z.boolean().optional(),
     providerId: z.string().trim().max(64).optional(),

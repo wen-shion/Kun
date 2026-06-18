@@ -146,6 +146,27 @@ export const RuntimeTuningConfigSchema = z
   })
   .strict()
 
+/** Detection aggressiveness for the design-quality linter. */
+export const DESIGN_QUALITY_STRICTNESS = ['relaxed', 'standard', 'strict'] as const
+
+/**
+ * First-party design-quality linter. When enabled, a builtin PostToolUse
+ * hook scans frontend files the agent writes/edits and folds findings back
+ * into the tool result so the model self-corrects on the next turn.
+ */
+export const QualityConfigSchema = z
+  .object({
+    enabled: z.boolean().default(true),
+    strictness: z.enum(DESIGN_QUALITY_STRICTNESS).default('standard'),
+    /** Rule ids to suppress (see the quality detector registry). */
+    ignoreRules: z.array(z.string().min(1)).default([]),
+    /** Glob patterns (relative paths) to skip, e.g. `**\/vendor/**`. */
+    ignoreFiles: z.array(z.string().min(1)).default([]),
+    /** Hard cap on findings folded into a single tool result. */
+    maxFindings: z.number().int().positive().max(100).default(12)
+  })
+  .strict()
+
 export const RequestHistoryHygieneConfigSchema = z
   .object({
     maxToolResultLines: PositiveInt.optional(),
@@ -207,11 +228,14 @@ export const KunConfigSchema = z
     contextCompaction: ContextCompactionConfigSchema.optional(),
     runtime: RuntimeTuningConfigSchema.optional(),
     capabilities: KunCapabilitiesConfig.default(DEFAULT_KUN_CAPABILITIES_CONFIG),
-    hooks: HooksConfigSchema.optional()
+    hooks: HooksConfigSchema.optional(),
+    quality: QualityConfigSchema.optional()
   })
   .strict()
 
 export type KunConfig = z.infer<typeof KunConfigSchema>
+export type QualityConfig = z.infer<typeof QualityConfigSchema>
+export const DEFAULT_QUALITY_CONFIG: QualityConfig = QualityConfigSchema.parse({})
 export type KunServeConfig = z.infer<typeof KunServeConfigSchema>
 export type ModelConfig = z.infer<typeof ModelConfigSchema>
 export type ContextCompactionConfig = z.infer<typeof ContextCompactionConfigSchema>

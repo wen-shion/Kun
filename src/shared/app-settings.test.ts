@@ -1119,7 +1119,11 @@ describe('write selection assist settings', () => {
     expect(write.selectionAssist.quickActions).toEqual([
       { id: 'polish', label: '', prompt: '', mode: 'chat' },
       { id: 'explain', label: '', prompt: '', mode: 'chat' },
-      { id: 'reformat', label: '', prompt: '', mode: 'edit' }
+      { id: 'reformat', label: '', prompt: '', mode: 'edit' },
+      { id: 'distill', label: '', prompt: '', mode: 'chat' },
+      { id: 'bolder', label: '', prompt: '', mode: 'chat' },
+      { id: 'quieter', label: '', prompt: '', mode: 'chat' },
+      { id: 'critique', label: '', prompt: '', mode: 'chat' }
     ])
   })
 

@@ -1753,7 +1753,8 @@ export function Workbench(): ReactElement {
       assistantContext,
       workspaceRoot: draft.workspaceRoot,
       images: imagesForPrompt,
-      imageMode
+      imageMode,
+      ...(draft.designContext ? { designContext: draft.designContext } : {})
     })
     sddUpgradeTargetRef.current = {
       planId,

@@ -17,6 +17,8 @@ import {
   type AppSettingsV1,
   type KunComputerUseSettingsV1,
   type KunContextCompactionSettingsV1,
+  type KunDesignQualitySettingsV1,
+  type KunDesignQualityStrictness,
   type KunHistoryHygieneSettingsV1,
   type KunImageGenerationSettingsV1,
   type KunMcpSearchSettingsV1,
@@ -140,7 +142,18 @@ export function defaultKunRuntimeSettings(
     videoGeneration: defaultKunVideoGenerationSettings(),
     modelProfiles: {},
     memoryEnabled: false,
-    computerUse: defaultKunComputerUseSettings()
+    computerUse: defaultKunComputerUseSettings(),
+    quality: defaultKunQualitySettings()
+  }
+}
+
+export function defaultKunQualitySettings(): KunDesignQualitySettingsV1 {
+  return {
+    enabled: true,
+    strictness: 'standard',
+    ignoreRules: [],
+    ignoreFiles: [],
+    maxFindings: 12
   }
 }
 
@@ -374,6 +387,11 @@ export function mergeKunRuntimeSettings(
     ...currentComputerUse,
     ...(patch?.computerUse ?? {})
   })
+  const currentQuality = normalizeKunQualitySettings(current.quality)
+  const nextQuality = normalizeKunQualitySettings({
+    ...currentQuality,
+    ...(patch?.quality ?? {})
+  })
   const currentRuntimeTuning = normalizeKunRuntimeTuningSettings(current.runtimeTuning)
   const nextRuntimeTuning = normalizeKunRuntimeTuningSettings({
     ...currentRuntimeTuning,
@@ -410,7 +428,8 @@ export function mergeKunRuntimeSettings(
     videoGeneration: nextVideoGeneration,
     modelProfiles: nextModelProfiles,
     memoryEnabled: patch?.memoryEnabled ?? current.memoryEnabled ?? false,
-    computerUse: nextComputerUse
+    computerUse: nextComputerUse,
+    quality: nextQuality
   }
 }
 
@@ -671,6 +690,33 @@ function normalizeKunRuntimeTuningSettings(
         16 * 1024 * 1024
       )
     }
+  }
+}
+
+const KUN_DESIGN_QUALITY_STRICTNESS: readonly KunDesignQualityStrictness[] = [
+  'relaxed',
+  'standard',
+  'strict'
+]
+
+function normalizeKunQualitySettings(
+  input: Partial<KunDesignQualitySettingsV1> | undefined
+): KunDesignQualitySettingsV1 {
+  const defaults = defaultKunQualitySettings()
+  const strictness =
+    input?.strictness && KUN_DESIGN_QUALITY_STRICTNESS.includes(input.strictness)
+      ? input.strictness
+      : defaults.strictness
+  const sanitizeList = (list: unknown): string[] =>
+    Array.isArray(list)
+      ? list.filter((item): item is string => typeof item === 'string' && item.trim().length > 0)
+      : defaults.ignoreRules
+  return {
+    enabled: input?.enabled !== false,
+    strictness,
+    ignoreRules: sanitizeList(input?.ignoreRules),
+    ignoreFiles: sanitizeList(input?.ignoreFiles),
+    maxFindings: boundedPositiveInt(input?.maxFindings, defaults.maxFindings, 100)
   }
 }
 
@@ -966,7 +1012,8 @@ export function migrateLegacyAppSettings(parsed: LegacyAppSettingsShape): Partia
     speechToText: normalizeKunSpeechToTextSettings(explicitKun.speechToText),
     textToSpeech: normalizeKunTextToSpeechSettings(explicitKun.textToSpeech),
     musicGeneration: normalizeKunMusicGenerationSettings(explicitKun.musicGeneration),
-    videoGeneration: normalizeKunVideoGenerationSettings(explicitKun.videoGeneration)
+    videoGeneration: normalizeKunVideoGenerationSettings(explicitKun.videoGeneration),
+    quality: normalizeKunQualitySettings(explicitKun.quality)
   }
   // Strip the legacy `agentProvider` discriminator and the legacy
   // per-provider settings from the surfaced migration result. The
