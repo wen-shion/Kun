@@ -72,6 +72,22 @@ function hasGeneratedFiles(block: ToolBlock): boolean {
 }
 
 /**
+ * Index of the last assistant block that carries visible (non-think) content.
+ * That single segment is the turn's final answer bubble; everything before it
+ * — including any consecutive narration segments — belongs inside the
+ * collapsed process timeline. Returns -1 when the turn has no assistant text.
+ */
+function findLastAssistantContentIndex(blocks: ChatBlock[]): number {
+  for (let index = blocks.length - 1; index >= 0; index -= 1) {
+    const block = blocks[index]
+    if (block.kind === 'assistant' && splitThink(block.text).content.trim()) {
+      return index
+    }
+  }
+  return -1
+}
+
+/**
  * Pure derivation of a turn's three view slices:
  *  - `processBlocks`: chronological reasoning/tool/compaction/approval
  *    trace, including in-flight assistant output while a turn is processing.
@@ -92,9 +108,16 @@ export function deriveTurnSections({
 }: DeriveTurnSectionsInput): TurnSections {
   const processBlocks: ChatBlock[] = []
   const assistantContentBlocks: TurnAssistantBlock[] = []
-  let latestAssistantContentBlock: TurnAssistantBlock | null = null
+  // Only the SINGLE last assistant text segment is the visible answer bubble
+  // (rendered outside the collapsed timeline). Every earlier "我先看看…" preface
+  // / intermediate narration stays inside 已处理 — even consecutive trailing
+  // segments. While processing, nothing is surfaced as the final body yet;
+  // everything is part of the live trace.
+  const finalAssistantContentIndex = isProcessing
+    ? -1
+    : findLastAssistantContentIndex(turn.blocks)
 
-  for (const block of turn.blocks) {
+  for (const [index, block] of turn.blocks.entries()) {
     if (block.kind === 'assistant') {
       const split = splitThink(block.text)
       if (split.think) {
@@ -102,11 +125,10 @@ export function deriveTurnSections({
       }
       if (split.content.trim()) {
         const contentBlock: TurnAssistantBlock = { ...block, text: split.content }
-        latestAssistantContentBlock = contentBlock
-        if (isProcessing) {
-          processBlocks.push(contentBlock)
-        } else {
+        if (index === finalAssistantContentIndex) {
           assistantContentBlocks.push(contentBlock)
+        } else {
+          processBlocks.push(contentBlock)
         }
       }
       continue
@@ -114,10 +136,6 @@ export function deriveTurnSections({
     if (isProcessBlock(block)) {
       processBlocks.push(block)
     }
-  }
-
-  if (!isProcessing && assistantContentBlocks.length === 0 && latestAssistantContentBlock) {
-    assistantContentBlocks.push(latestAssistantContentBlock)
   }
 
   if (liveProcessText.trim()) {

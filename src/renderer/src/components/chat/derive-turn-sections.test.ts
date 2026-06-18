@@ -58,7 +58,7 @@ describe('deriveTurnSections', () => {
     expect(result.processBlocks.map((block) => block.kind)).toEqual(['tool'])
   })
 
-  it('keeps completed assistant text that was separated by tool output', () => {
+  it('keeps intermediate assistant text inside the process timeline and surfaces only the final answer', () => {
     const result = sections([
       { kind: 'assistant', id: 'intro', text: 'I found the likely cause.' },
       {
@@ -92,15 +92,47 @@ describe('deriveTurnSections', () => {
       { kind: 'assistant', id: 'next', text: 'The issue link above should still be visible.' }
     ])
 
-    expect(result.assistantContentBlocks.map((block) => block.id)).toEqual([
+    // Only the trailing answer renders as the visible message body; the earlier
+    // "我先看看…"-style narration belongs inside the collapsed work timeline,
+    // not spilled out as standalone bubbles (regression from b9d4efb0a).
+    expect(result.assistantContentBlocks.map((block) => block.id)).toEqual(['next'])
+    // The intermediate segments are preserved (not dropped) — just kept in the
+    // process trace, in chronological order with the tool calls.
+    expect(result.processBlocks.map((block) => block.id)).toEqual([
       'intro',
+      'tool_read',
       'analysis',
-      'next'
+      'tool_issue'
     ])
-    expect(result.assistantContentBlocks.map((block) => block.text).join('\n\n')).toContain(
-      'command output line 2'
-    )
-    expect(result.processBlocks.map((block) => block.id)).toEqual(['tool_read', 'tool_issue'])
+    expect(
+      result.processBlocks
+        .filter((block) => block.kind === 'assistant')
+        .map((block) => block.text)
+        .join('\n\n')
+    ).toContain('command output line 2')
+  })
+
+  it('keeps every consecutive trailing segment but the last inside the timeline', () => {
+    // Reproduces the reported case: a single command followed by several
+    // consecutive assistant segments. Only the final segment is the visible
+    // answer; the preface + intermediate analysis stay inside 已处理 even
+    // though no tool separates them.
+    const result = sections([
+      {
+        kind: 'tool',
+        id: 'tool_ls',
+        summary: 'pwd && ls -la',
+        status: 'success',
+        toolKind: 'tool_call',
+        detail: 'workspace listing'
+      },
+      { kind: 'assistant', id: 'preface', text: '我先看看当前工作目录和项目结构。' },
+      { kind: 'assistant', id: 'analysis', text: '当前工作目录是 default_workspace，没有实际项目代码。' },
+      { kind: 'assistant', id: 'question', text: '请问你想看哪个项目？' }
+    ])
+
+    expect(result.assistantContentBlocks.map((block) => block.id)).toEqual(['question'])
+    expect(result.processBlocks.map((block) => block.id)).toEqual(['tool_ls', 'preface', 'analysis'])
   })
 
   it('does not create assistant content from tool-only process work', () => {
